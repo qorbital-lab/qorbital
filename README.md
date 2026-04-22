@@ -1,3 +1,5 @@
+<img width="3168" height="1344" alt="Gemini_Generated_Image_uqo1uuqo1uuqo1uu" src="https://github.com/user-attachments/assets/6f811305-e743-4b00-9cef-052041805448" />
+
 # qOrbital
 
 **Interactive quantum chemistry orbital visualizer — compute molecular ground states with VQE on real quantum hardware and explore 3D electron density isosurfaces in the browser.**
