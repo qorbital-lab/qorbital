@@ -5,6 +5,7 @@
 **Interactive quantum chemistry orbital visualizer — compute molecular ground states with VQE on real quantum hardware and explore 3D electron density isosurfaces in the browser.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CI](https://github.com/qorbital-lab/qorbital/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/qorbital-lab/qorbital/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10+-green.svg)](https://python.org)
 [![Qiskit](https://img.shields.io/badge/Qiskit-1.0+-purple.svg)](https://qiskit.org)
 
