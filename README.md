@@ -109,14 +109,20 @@ qorbital/
 ├── src/
 │   └── qorbital/
 │       ├── __init__.py
-│       └── chemistry/          # Integrals and electronic structure (PySCF / drivers)
-│           └── __init__.py
-├── web/                        # Three.js browser frontend (placeholders TBD)
-│   └── .gitkeep
+│       ├── chemistry/          # Integrals and electronic structure (PySCF / drivers)
+│       │   └── __init__.py
+│       ├── molecules.py        # Molecule definitions and geometry
+│       ├── hartree_fock.py     # PySCF classical computation
+│       ├── hamiltonian.py      # Qiskit Nature Hamiltonian mapping
+│       ├── vqe.py              # VQE runner (IonQ backends)
+│       ├── density.py          # 1-RDM extraction and density grids
+│       └── mesh.py             # Marching cubes mesh generation
+├── web/                        # Three.js browser frontend
+│   ├── index.html
+│   ├── viewer.js               # 3D isosurface renderer
+│   └── controls.js             # Molecule selector and geometry slider
 ├── examples/                   # Jupyter notebooks and usage examples
-│   └── .gitkeep
 ├── tests/
-│   └── __init__.py
 ├── pyproject.toml
 ├── LICENSE
 └── README.md
