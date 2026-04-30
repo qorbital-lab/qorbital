@@ -38,17 +38,24 @@ Users select a molecule (H₂, LiH, HeH⁺, BeH₂), adjust bond geometry with a
 git clone https://github.com/qorbital-lab/qorbital.git
 cd qorbital
 
-# Install with uv (recommended)
-uv sync
-
-# Or install with pip
+# Editable install (recommended: use a virtual environment)
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e .
+
+# Or with uv (installs into the active environment)
+uv venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+uv pip install -e .
 ```
 
 ### Run the web demo
 
+The `qorbital serve` CLI is not wired up yet. Until it lands, serve the static files under `web/` with any HTTP server (for example `python -m http.server` from `web/`).
+
+When available:
+
 ```bash
-uv run qorbital serve
+qorbital serve
 ```
 
 Then open [http://localhost:8000](http://localhost:8000) in your browser.
@@ -102,18 +109,14 @@ qorbital/
 ├── src/
 │   └── qorbital/
 │       ├── __init__.py
-│       ├── molecules.py        # Molecule definitions and geometry
-│       ├── hartree_fock.py     # PySCF classical computation
-│       ├── hamiltonian.py      # Qiskit Nature Hamiltonian mapping
-│       ├── vqe.py              # VQE runner (IonQ backends)
-│       ├── density.py          # 1-RDM extraction and density grids
-│       └── mesh.py             # Marching cubes mesh generation
-├── web/                        # Three.js browser frontend
-│   ├── index.html
-│   ├── viewer.js               # 3D isosurface renderer
-│   └── controls.js             # Molecule selector and geometry slider
+│       └── chemistry/          # Integrals and electronic structure (PySCF / drivers)
+│           └── __init__.py
+├── web/                        # Three.js browser frontend (placeholders TBD)
+│   └── .gitkeep
 ├── examples/                   # Jupyter notebooks and usage examples
+│   └── .gitkeep
 ├── tests/
+│   └── __init__.py
 ├── pyproject.toml
 ├── LICENSE
 └── README.md
@@ -145,13 +148,15 @@ We welcome contributions! Whether it's adding new molecules, improving the visua
 # Set up development environment
 git clone https://github.com/qorbital-lab/qorbital.git
 cd qorbital
-uv sync --dev
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"
 
 # Run tests
-uv run pytest
+pytest
 
 # Run linting
-uv run ruff check .
+ruff check .
 ```
 
 ## Acknowledgments
