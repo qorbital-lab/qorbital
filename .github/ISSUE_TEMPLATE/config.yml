@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: README & quickstart
+    url: https://github.com/qorbital-lab/qorbital#readme
+    about: Installation and project overview in the repository README
