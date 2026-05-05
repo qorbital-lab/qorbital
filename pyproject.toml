@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling>=1.21.0"]
-build-backend = "hatchling.build"
+requires = ["uv_build>=0.11.9,<0.12"]
+build-backend = "uv_build"
 
 [project]
 name = "qorbital"
@@ -31,9 +31,6 @@ dev = [
 [project.urls]
 Homepage = "https://github.com/qorbital-lab/qorbital"
 Repository = "https://github.com/qorbital-lab/qorbital"
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/qorbital"]
 
 [tool.ruff]
 target-version = "py310"
