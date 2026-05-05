@@ -1,0 +1,1 @@
+"""Streamlit / Panel shell (stub)."""

@@ -1,30 +1,37 @@
 ---
-name: Hardware run
-about: Report or track a run on IonQ simulator or quantum hardware (no secrets)
-title: "[hardware] "
+name: Hardware Run
+about: Track an IonQ hardware submission
+title: "[HW] [Molecule] — [Bond length] — [Date]"
+labels: type: hardware
 ---
 
-## Security
+## Run Plan
 
-Do **not** paste API keys, tokens, or credentials. Describe configuration at a high level only.
+- **Molecule:**
+- **Bond length(s):**
+- **Backend:** Aria / Forte / simulator
+- **Shots:**
+- **Estimated cost:** $___ credits
 
-## Backend
+## Pre-flight checklist
 
-- Backend id (e.g. simulator vs device):
-- Qiskit / provider versions if relevant:
+- [ ] Circuit compiled and validated on simulator
+- [ ] Mapper + ansatz consistent with prior runs (or ADR updated)
+- [ ] Cost estimate within budget
 
-## Experiment
+## Submission
 
-- Molecule / system:
-- Bond length or geometry note:
-- Ansatz / circuit summary (depth, parameters) if applicable:
+- **Run ID:**
+- **Submission timestamp:**
+- **Queue wait:**
 
-## Job / result
+Do not paste API keys, tokens, or credentials in this issue.
 
-- Job ID or link (if shareable):
-- Energy or key metrics (optional):
-- What went wrong or what you want validated?
+## Results
 
-## Reproducibility
+- **Energy:**
+- **Convergence iterations:**
+- **Run log JSON:** `data/runs/[molecule]/[run-id].json`
+- **Visualization:** [link]
 
-Notebook path, script, or PR branch others can use to reproduce (without secrets).
+## Notes
