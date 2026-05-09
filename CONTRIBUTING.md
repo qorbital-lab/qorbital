@@ -5,17 +5,17 @@ See [SetupGuide.md](SetupGuide.md) for repository conventions, hardware run logs
 ## Local setup
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -e ".[dev]"
+git clone https://github.com/qorbital-lab/qorbital.git
+cd qorbital
+uv sync --dev
 ```
 
 ## Checks before a PR
 
 ```bash
-pytest
-ruff check qorbital tests
-ruff format --check qorbital tests
+uv run pytest
+uv run ruff check qorbital tests
+uv run ruff format --check qorbital tests
 ```
 
 Open a PR using the template; link issues with `Closes #NNN` where applicable.
