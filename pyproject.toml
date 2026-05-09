@@ -1,0 +1,47 @@
+[build-system]
+requires = ["uv_build>=0.11.9,<0.12"]
+build-backend = "uv_build"
+
+[project]
+name = "qorbital"
+version = "0.1.0"
+description = "Interactive quantum chemistry orbital visualizer"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [{ name = "qorbital-lab" }]
+keywords = ["quantum", "chemistry", "qiskit", "vqe", "orbitals"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.4.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/qorbital-lab/qorbital"
+Repository = "https://github.com/qorbital-lab/qorbital"
+
+[tool.uv.build-backend]
+module-name = "qorbital"
+module-root = ""
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+
+[tool.ruff.format]
+quote-style = "double"

@@ -5,6 +5,7 @@
 **Interactive quantum chemistry orbital visualizer — compute molecular ground states with VQE on real quantum hardware and explore 3D electron density isosurfaces in the browser.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CI](https://github.com/qorbital-lab/qorbital/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/qorbital-lab/qorbital/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10+-green.svg)](https://python.org)
 [![Qiskit](https://img.shields.io/badge/Qiskit-1.0+-purple.svg)](https://qiskit.org)
 
@@ -41,11 +42,15 @@ cd qorbital
 # Install with uv (recommended)
 uv sync
 
-# Or install with pip
-pip install -e .
+# Or editable install for development
+uv sync --dev
 ```
 
 ### Run the web demo
+
+The `qorbital serve` CLI is not wired up yet. Until it lands, serve the static files under `qorbital/viz/web/` with any HTTP server (for example `python -m http.server` from that directory).
+
+When available:
 
 ```bash
 uv run qorbital serve
@@ -97,24 +102,33 @@ mesh = qorbital.to_mesh(density, isovalue=0.02)
 
 ## Project Structure
 
+Layout follows [SetupGuide.md](SetupGuide.md) §1 (canonical).
+
 ```
 qorbital/
-├── src/
-│   └── qorbital/
-│       ├── __init__.py
-│       ├── molecules.py        # Molecule definitions and geometry
-│       ├── hartree_fock.py     # PySCF classical computation
-│       ├── hamiltonian.py      # Qiskit Nature Hamiltonian mapping
-│       ├── vqe.py              # VQE runner (IonQ backends)
-│       ├── density.py          # 1-RDM extraction and density grids
-│       └── mesh.py             # Marching cubes mesh generation
-├── web/                        # Three.js browser frontend
-│   ├── index.html
-│   ├── viewer.js               # 3D isosurface renderer
-│   └── controls.js             # Molecule selector and geometry slider
-├── examples/                   # Jupyter notebooks and usage examples
+├── .github/
+│   ├── ISSUE_TEMPLATE/
+│   └── workflows/              # CI (lint, format, pytest; no hardware)
+├── qorbital/                   # main Python package
+│   ├── __init__.py
+│   ├── chemistry/              # PySCF + Qiskit Nature
+│   ├── vqe/                    # VQE + IonQ submission
+│   ├── bohmian/                # velocity field + trajectory integrator
+│   ├── viz/                    # Three.js + PyVista (see viz/web/)
+│   └── webapp/                 # Streamlit / Panel shell (stub)
+├── notebooks/
+├── data/
+│   └── runs/                   # hardware run logs (JSON); see SetupGuide §6
+├── docs/
+│   ├── decisions/              # ADRs
+│   ├── log/
+│   ├── api/
+│   └── tutorials/
 ├── tests/
 ├── pyproject.toml
+├── uv.lock
+├── CONTRIBUTING.md
+├── SetupGuide.md
 ├── LICENSE
 └── README.md
 ```
@@ -131,6 +145,7 @@ qorbital/
 ## Requirements
 
 - Python 3.10+
+- [uv](https://docs.astral.sh/uv/) (recommended package manager)
 - [Qiskit](https://qiskit.org) 1.0+
 - [Qiskit Nature](https://qiskit-community.github.io/qiskit-nature/) 0.7+
 - [PySCF](https://pyscf.org) 2.4+
@@ -151,8 +166,13 @@ uv sync --dev
 uv run pytest
 
 # Run linting
-uv run ruff check .
+uv run ruff check qorbital tests
+
+# Run formatting
+uv run ruff format qorbital tests
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [SetupGuide.md](SetupGuide.md) for conventions (including: no IonQ/hardware jobs in CI).
 
 ## Acknowledgments
 
