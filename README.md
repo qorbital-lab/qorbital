@@ -39,14 +39,11 @@ Users select a molecule (H₂, LiH, HeH⁺, BeH₂), adjust bond geometry with a
 git clone https://github.com/qorbital-lab/qorbital.git
 cd qorbital
 
-# Editable install (recommended: use a virtual environment)
-python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -e .
+# Install with uv (recommended)
+uv sync
 
-# Or with uv (installs into the active environment)
-uv venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
-uv pip install -e .
+# Or editable install for development
+uv sync --dev
 ```
 
 ### Run the web demo
@@ -56,7 +53,7 @@ The `qorbital serve` CLI is not wired up yet. Until it lands, serve the static f
 When available:
 
 ```bash
-qorbital serve
+uv run qorbital serve
 ```
 
 Then open [http://localhost:8000](http://localhost:8000) in your browser.
@@ -129,6 +126,7 @@ qorbital/
 │   └── tutorials/
 ├── tests/
 ├── pyproject.toml
+├── uv.lock
 ├── CONTRIBUTING.md
 ├── SetupGuide.md
 ├── LICENSE
@@ -147,6 +145,7 @@ qorbital/
 ## Requirements
 
 - Python 3.10+
+- [uv](https://docs.astral.sh/uv/) (recommended package manager)
 - [Qiskit](https://qiskit.org) 1.0+
 - [Qiskit Nature](https://qiskit-community.github.io/qiskit-nature/) 0.7+
 - [PySCF](https://pyscf.org) 2.4+
@@ -161,15 +160,16 @@ We welcome contributions! Whether it's adding new molecules, improving the visua
 # Set up development environment
 git clone https://github.com/qorbital-lab/qorbital.git
 cd qorbital
-python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -e ".[dev]"
+uv sync --dev
 
 # Run tests
-pytest
+uv run pytest
 
 # Run linting
-ruff check qorbital tests
+uv run ruff check qorbital tests
+
+# Run formatting
+uv run ruff format qorbital tests
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [SetupGuide.md](SetupGuide.md) for conventions (including: no IonQ/hardware jobs in CI).
