@@ -20,12 +20,23 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-dependencies = []
+dependencies = [
+    "qiskit>=1.4,<2",
+    "qiskit-nature>=0.7.2",
+    "qiskit-algorithms>=0.4.0",
+    "qiskit-aer>=0.17.0",
+    "qiskit-ionq>=0.5,<1",
+    "pyscf>=2.4",
+    "numpy>=1.24",
+    "scipy>=1.10",
+]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
     "ruff>=0.4.0",
+    "jupyterlab>=4.0",
+    "pyvista>=0.44",
 ]
 
 [project.urls]

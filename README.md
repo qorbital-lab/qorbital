@@ -42,8 +42,8 @@ cd qorbital
 # Install with uv (recommended)
 uv sync
 
-# Or editable install for development
-uv sync --dev
+# Or install with dev extras for development
+uv sync --all-extras
 ```
 
 ### Run the web demo
@@ -146,9 +146,12 @@ qorbital/
 
 - Python 3.10+
 - [uv](https://docs.astral.sh/uv/) (recommended package manager)
-- [Qiskit](https://qiskit.org) 1.0+
-- [Qiskit Nature](https://qiskit-community.github.io/qiskit-nature/) 0.7+
+- [Qiskit](https://qiskit.org) 1.4+ (pinned to `<2`; see [ADR-001](docs/decisions/ADR-001-qiskit-1x-pin.md))
+- [Qiskit Nature](https://qiskit-community.github.io/qiskit-nature/) 0.7.2+
+- [Qiskit Aer](https://qiskit.github.io/qiskit-aer/) 0.17+ (local simulator)
+- [qiskit-ionq](https://qiskit-community.github.io/qiskit-ionq/) 0.5+ (IonQ provider, `<1` for Qiskit 1.x compat)
 - [PySCF](https://pyscf.org) 2.4+
+- NumPy 1.24+, SciPy 1.10+
 - IonQ account (for hardware runs; simulator available without one)
 - Modern browser with WebGL support (for the web demo)
 
@@ -160,7 +163,7 @@ We welcome contributions! Whether it's adding new molecules, improving the visua
 # Set up development environment
 git clone https://github.com/qorbital-lab/qorbital.git
 cd qorbital
-uv sync --dev
+uv sync --all-extras
 
 # Run tests
 uv run pytest
