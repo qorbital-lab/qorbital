@@ -12,6 +12,7 @@ area and uses mock data until the full chemistry and Bohmian stacks land.
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from typing import Iterable
 
@@ -36,12 +37,18 @@ def _ensure_jupyter_backend(jupyter_backend: str | None) -> None:
         return
     try:
         pv.set_jupyter_backend(jupyter_backend)
-    except Exception:  # pragma: no cover - backend availability is environment-specific
-        # If the backend is unavailable, continue with the default one.
-        return
+    except (ImportError, ValueError) as err:  # pragma: no cover
+        warnings.warn(
+            f"Could not set jupyter backend to {jupyter_backend!r}: {err}",
+            stacklevel=2,
+        )
 
 
-def _grid_to_mock_polydata(grid: DensityGrid) -> pv.PolyData:
+def _mock_polydata_for_grid_geometry(
+    grid: DensityGrid,
+    *,
+    isovalue: float | None = None,
+) -> pv.PolyData:
     """Convert a tiny DensityGrid into a mock isosurface PolyData.
 
     This avoids relying on backends that may not be available in all
@@ -61,7 +68,7 @@ def _grid_to_mock_polydata(grid: DensityGrid) -> pv.PolyData:
     values = np.exp(-r2) - 0.5 * np.exp(-4.0 * r2)
 
     # Take an isosurface-like band and sample points from it to form a cloud.
-    iso = float(grid.default_isovalue or 0.02)
+    iso = float(isovalue if isovalue is not None else grid.default_isovalue or 0.02)
     mask = np.logical_and(values > iso * 0.9, values < iso * 1.1)
     pts = np.stack([X[mask], Y[mask], Z[mask]], axis=1)
     if pts.size == 0:
@@ -70,6 +77,35 @@ def _grid_to_mock_polydata(grid: DensityGrid) -> pv.PolyData:
     poly = pv.PolyData(pts)
     poly["density"] = values[mask] if values[mask].size > 0 else np.array([iso])
     return poly
+
+
+def _add_density_actor(
+    plotter: pv.Plotter,
+    density: DensityGrid | MeshSurface,
+    *,
+    isovalue: float | None = None,
+) -> None:
+    """Add a density isosurface actor to a plotter."""
+
+    if isinstance(density, DensityGrid):
+        contour = _mock_polydata_for_grid_geometry(density, isovalue=isovalue)
+        plotter.add_mesh(
+            contour,
+            cmap="viridis",
+            opacity=0.8,
+            lighting=True,
+        )
+        return
+
+    poly = _mesh_surface_to_polydata(density)
+    scalars = "phase" if "phase" in poly.point_data else None
+    plotter.add_mesh(
+        poly,
+        scalars=scalars,
+        cmap="coolwarm" if scalars else None,
+        opacity=0.85,
+        lighting=True,
+    )
 
 
 def _mesh_surface_to_polydata(surface: MeshSurface) -> pv.PolyData:
@@ -100,7 +136,7 @@ def render_isosurface(
     *,
     isovalue: float | None = None,
     show: bool = True,
-    jupyter_backend: str | None = "panel",
+    jupyter_backend: str | None = "trame",
 ) -> pv.Plotter:
     """Render a single isosurface from a DensityGrid or MeshSurface.
 
@@ -110,24 +146,7 @@ def render_isosurface(
     _ensure_jupyter_backend(jupyter_backend)
     plotter = pv.Plotter()
 
-    if isinstance(grid_or_mesh, DensityGrid):
-        contour = _grid_to_mock_polydata(grid_or_mesh)
-        plotter.add_mesh(
-            contour,
-            cmap="viridis",
-            opacity=0.8,
-            lighting=True,
-        )
-    else:
-        poly = _mesh_surface_to_polydata(grid_or_mesh)
-        scalars = "phase" if "phase" in poly.point_data else None
-        plotter.add_mesh(
-            poly,
-            scalars=scalars,
-            cmap="coolwarm" if scalars else None,
-            opacity=0.85,
-            lighting=True,
-        )
+    _add_density_actor(plotter, grid_or_mesh, isovalue=isovalue)
 
     plotter.set_background("black")
 
@@ -140,7 +159,7 @@ def render_trajectories(
     trajectories: Iterable[MockTrajectory],
     *,
     show: bool = True,
-    jupyter_backend: str | None = "panel",
+    jupyter_backend: str | None = "trame",
 ) -> pv.Plotter:
     """Render a list of mock trajectories as 3D line objects."""
 
@@ -197,32 +216,14 @@ def render_combined(
     bundle: VisualizationBundle,
     *,
     show: bool = True,
-    jupyter_backend: str | None = "panel",
+    jupyter_backend: str | None = "trame",
 ) -> pv.Plotter:
     """Render density, trajectories, and atoms from a VisualizationBundle."""
 
     _ensure_jupyter_backend(jupyter_backend)
     plotter = pv.Plotter()
 
-    # Density / isosurface
-    if isinstance(bundle.density, DensityGrid):
-        contour = _grid_to_mock_polydata(bundle.density)
-        plotter.add_mesh(
-            contour,
-            cmap="viridis",
-            opacity=0.8,
-            lighting=True,
-        )
-    else:
-        poly = _mesh_surface_to_polydata(bundle.density)
-        scalars = "phase" if "phase" in poly.point_data else None
-        plotter.add_mesh(
-            poly,
-            scalars=scalars,
-            cmap="coolwarm" if scalars else None,
-            opacity=0.85,
-            lighting=True,
-        )
+    _add_density_actor(plotter, bundle.density)
 
     # Atoms
     _add_atoms_from_bundle(bundle, plotter)
@@ -247,7 +248,7 @@ def render_combined(
 def show_h2_mock(
     *,
     show: bool = True,
-    jupyter_backend: str | None = "panel",
+    jupyter_backend: str | None = "trame",
 ) -> pv.Plotter:
     """Convenience helper: render the mock H₂ bundle in a single call."""
 
@@ -258,7 +259,7 @@ def show_h2_mock(
 def show_grid_mock(
     *,
     show: bool = True,
-    jupyter_backend: str | None = "panel",
+    jupyter_backend: str | None = "trame",
 ) -> pv.Plotter:
     """Convenience helper: render a tiny grid-based mock bundle."""
 
