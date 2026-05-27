@@ -44,9 +44,14 @@ export class SceneManager {
     this.scene.add(this.contentRoot);
 
     this._animationFrame = 0;
-    this._resizeObserver = null;
     this._onResize = () => this.resize();
+    this._resizeObserver = null;
     window.addEventListener("resize", this._onResize);
+    const parent = this.canvas.parentElement;
+    if (parent && "ResizeObserver" in window) {
+      this._resizeObserver = new ResizeObserver(() => this.resize());
+      this._resizeObserver.observe(parent);
+    }
     this.resize();
     this._animate = this._animate.bind(this);
     this._animationFrame = requestAnimationFrame(this._animate);
@@ -103,6 +108,10 @@ export class SceneManager {
   dispose() {
     cancelAnimationFrame(this._animationFrame);
     window.removeEventListener("resize", this._onResize);
+    if (this._resizeObserver) {
+      this._resizeObserver.disconnect();
+      this._resizeObserver = null;
+    }
     this.controls.dispose();
     this.renderer.dispose();
   }

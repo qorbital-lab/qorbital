@@ -53,8 +53,7 @@ def test_committed_web_fixture():
         / "fixtures"
         / "h2_mesh_v0.json"
     )
-    if not fixture.is_file():
-        pytest.skip("web fixture not generated yet")
+    assert fixture.is_file(), "expected committed fixture h2_mesh_v0.json to exist"
     loaded = load_bundle(fixture)
     assert loaded.molecule.id == "H2"
 
@@ -63,4 +62,25 @@ def test_unsupported_schema_version():
     data = bundle_to_dict(h2_mock_bundle())
     data["schema_version"] = "9.0.0"
     with pytest.raises(ValueError, match="unsupported schema_version"):
+        bundle_from_dict(data)
+
+
+def test_density_kind_is_required():
+    data = bundle_to_dict(h2_mock_bundle())
+    data["density"].pop("kind")
+    with pytest.raises(ValueError, match="density.kind is required"):
+        bundle_from_dict(data)
+
+
+def test_atom_position_coerced_to_float():
+    data = bundle_to_dict(h2_mock_bundle())
+    data["molecule"]["atoms"][0]["position"] = [0, "1.5", -2]
+    parsed = bundle_from_dict(data)
+    assert parsed.molecule.atoms[0].position == [0.0, 1.5, -2.0]
+
+
+def test_mesh_shape_validated():
+    data = bundle_to_dict(h2_mock_bundle())
+    data["density"]["vertices"][0] = [0.0, 1.0]
+    with pytest.raises(ValueError, match="mesh vertex"):
         bundle_from_dict(data)

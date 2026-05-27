@@ -19,11 +19,27 @@ export function validateBundle(bundle) {
   if (!data.molecule || typeof data.molecule !== "object") {
     throw new Error("Bundle missing molecule");
   }
+  const molecule = /** @type {Record<string, unknown>} */ (data.molecule);
+  if (!Array.isArray(molecule.atoms)) {
+    throw new Error("Molecule requires atoms array");
+  }
+  for (const atom of molecule.atoms) {
+    if (!atom || typeof atom !== "object") {
+      throw new Error("Each atom must be an object");
+    }
+    const atomData = /** @type {Record<string, unknown>} */ (atom);
+    if (!Array.isArray(atomData.position) || atomData.position.length !== 3) {
+      throw new Error("Each atom.position must be a 3-element array");
+    }
+  }
   if (!data.density || typeof data.density !== "object") {
     throw new Error("Bundle missing density");
   }
   const density = /** @type {Record<string, unknown>} */ (data.density);
-  const kind = density.kind ?? "mesh";
+  if (!("kind" in density)) {
+    throw new Error("density.kind is required");
+  }
+  const kind = density.kind;
   if (kind === "mesh") {
     if (!Array.isArray(density.vertices) || !Array.isArray(density.faces)) {
       throw new Error("MeshSurface requires vertices and faces arrays");

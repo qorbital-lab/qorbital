@@ -89,7 +89,11 @@ class VisualizationBundle:
 
 
 def _atom_from_dict(data: dict[str, Any]) -> AtomSpec:
-    return AtomSpec(symbol=data["symbol"], position=list(data["position"]))
+    position = [float(v) for v in data["position"]]
+    if len(position) != 3:
+        msg = "atom position must have exactly 3 elements"
+        raise ValueError(msg)
+    return AtomSpec(symbol=data["symbol"], position=position)
 
 
 def _molecule_from_dict(data: dict[str, Any]) -> MoleculeSpec:
@@ -104,11 +108,22 @@ def _molecule_from_dict(data: dict[str, Any]) -> MoleculeSpec:
 
 def _mesh_from_dict(data: dict[str, Any]) -> MeshSurface:
     scalars = data.get("vertex_scalars")
+    vertices = [list(v) for v in data["vertices"]]
+    faces = [list(f) for f in data["faces"]]
+    for vertex in vertices:
+        if len(vertex) != 3:
+            msg = "each mesh vertex must have exactly 3 values"
+            raise ValueError(msg)
+    for face in faces:
+        if len(face) != 3:
+            msg = "each mesh face must have exactly 3 indices"
+            raise ValueError(msg)
+
     return MeshSurface(
         kind="mesh",
         isovalue=float(data.get("isovalue", 0.02)),
-        vertices=[list(v) for v in data["vertices"]],
-        faces=[list(f) for f in data["faces"]],
+        vertices=[[float(v) for v in vertex] for vertex in vertices],
+        faces=[[int(i) for i in face] for face in faces],
         vertex_scalars=list(scalars) if scalars is not None else None,
     )
 
@@ -127,7 +142,10 @@ def _grid_from_dict(data: dict[str, Any]) -> DensityGrid:
 
 
 def density_from_dict(data: dict[str, Any]) -> MeshSurface | DensityGrid:
-    kind = data.get("kind", "mesh")
+    if "kind" not in data:
+        msg = "density.kind is required"
+        raise ValueError(msg)
+    kind = data["kind"]
     if kind == "grid":
         return _grid_from_dict(data)
     if kind == "mesh":
