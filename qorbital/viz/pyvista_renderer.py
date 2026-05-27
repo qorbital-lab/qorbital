@@ -264,5 +264,3 @@ def show_grid_mock(
 
     bundle = grid_mock_bundle()
     return render_combined(bundle, show=show, jupyter_backend=jupyter_backend)
-
-

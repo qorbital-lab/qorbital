@@ -78,4 +78,3 @@ def test_render_combined_from_grid_bundle() -> None:
     plotter = render_combined(bundle, show=False, jupyter_backend=None)
     assert isinstance(plotter, pv.Plotter)
     assert _count_actors(plotter) >= 3
-
