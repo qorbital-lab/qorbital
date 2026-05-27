@@ -85,6 +85,12 @@ density = qorbital.compute_density(result)
 
 # Export mesh for visualization
 mesh = qorbital.to_mesh(density, isovalue=0.02)
+
+# Render in PyVista (notebook)
+from qorbital.viz.pyvista_renderer import show_h2_mock
+
+plotter = show_h2_mock(show=False, jupyter_backend="panel")  # or "ipyvtklink"
+plotter.show()
 ```
 
 ## How It Works
