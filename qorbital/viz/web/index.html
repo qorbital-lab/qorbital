@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>qOrbital Viewer</title>
+    <title>qOrbital</title>
     <link rel="stylesheet" href="styles/viewer.css" />
     <script type="importmap">
       {
@@ -16,42 +16,73 @@
   </head>
   <body>
     <div id="app">
-      <aside id="sidebar">
-        <h1>qOrbital</h1>
-        <p class="subtitle">Quantum orbital viewer (skeleton)</p>
-
-        <section class="panel">
-          <h2>Molecule</h2>
-          <p id="molecule-label">—</p>
-          <p>Energy: <span id="energy-label">—</span></p>
-          <p class="disabled-hint">Molecule picker — issue #30</p>
-        </section>
-
-        <section class="panel">
-          <h2>Isosurface</h2>
-          <label for="isovalue-slider">Isovalue</label>
-          <input
-            id="isovalue-slider"
-            type="range"
-            min="0.005"
-            max="0.08"
-            step="0.001"
-            value="0.02"
-          />
-          <p><span id="isovalue-readout">0.020</span> (live update — issue #24)</p>
-        </section>
-
-        <section class="panel">
-          <h2>Layers</h2>
-          <p>Surface · Atoms (on)</p>
-          <p class="disabled-hint">Trajectories — issue #25</p>
-        </section>
-      </aside>
-
       <main id="viewer-wrap">
         <canvas id="viewer-canvas" aria-label="3D orbital viewer"></canvas>
+
         <div id="overlay">Loading…</div>
-        <div id="status-bar">Initializing…</div>
+
+        <header class="hud hud-tl">
+          <p id="hud-phase" class="hud-phase">Step — · initializing</p>
+          <canvas
+            id="hud-minimap"
+            width="72"
+            height="72"
+            aria-label="Molecule schematic"
+          ></canvas>
+        </header>
+
+        <aside class="hud hud-tr" id="hud-meta">
+          <dl class="meta-list">
+            <div><dt>Molecule</dt><dd id="meta-molecule">—</dd></div>
+            <div><dt>Bond</dt><dd id="meta-bond">—</dd></div>
+            <div><dt>Basis</dt><dd id="meta-basis">—</dd></div>
+            <div><dt>Method</dt><dd id="meta-method">—</dd></div>
+            <div><dt>Backend</dt><dd id="meta-backend">—</dd></div>
+            <div><dt>Energy</dt><dd id="meta-energy">—</dd></div>
+            <div><dt>HF ref</dt><dd id="meta-hf">—</dd></div>
+            <div><dt>FCI ref</dt><dd id="meta-fci">—</dd></div>
+            <div><dt>Isovalue</dt><dd id="meta-isovalue">—</dd></div>
+          </dl>
+        </aside>
+
+        <footer class="hud hud-bl">
+          <p id="hud-context">—</p>
+        </footer>
+
+        <footer class="hud hud-br">
+          <p id="hud-shortcuts">H: toggle controls · drag: orbit · scroll: zoom</p>
+        </footer>
+
+        <aside id="controls-panel" class="controls-panel" hidden>
+          <h2>Controls</h2>
+
+          <section class="panel">
+            <h3>Isosurface</h3>
+            <label for="isovalue-slider">ρ(r) threshold</label>
+            <input
+              id="isovalue-slider"
+              type="range"
+              min="0.005"
+              max="0.08"
+              step="0.001"
+              value="0.02"
+            />
+            <p class="readout"><span id="isovalue-readout">0.020</span> a.u.</p>
+            <p class="hint">Live isovalue update — issue #24</p>
+          </section>
+
+          <section class="panel">
+            <h3>Layers</h3>
+            <p>Density isosurface · nuclear centers</p>
+            <p class="hint">Trajectories — issue #25</p>
+          </section>
+
+          <section class="panel">
+            <h3>Molecule</h3>
+            <p id="molecule-label">—</p>
+            <p class="hint">Molecule picker — issue #30</p>
+          </section>
+        </aside>
       </main>
     </div>
 
