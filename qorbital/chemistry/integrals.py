@@ -88,15 +88,17 @@ def compute_integrals(
     two_body_packed = np.asarray(electronic_integrals.alpha["++--"])
     two_body = ao2mo.restore(1, two_body_packed, n_orb)
 
-    # Reuse the SCF that PySCFDriver.run() already performed instead of running a
-    # second scf.*HF().kernel(), which would duplicate the (potentially expensive)
-    # SCF cost.  The driver stores the converged mean-field object on `_calc`, and
-    # its results are what the returned integrals/problem are built from, so the MO
-    # coefficients and overlap stay consistent with the Hamiltonian.
-    mean_field = driver._calc
-    hf_energy = mean_field.e_tot
-    mo_coefficients = np.asarray(mean_field.mo_coeff)
-    overlap_integrals = np.asarray(mean_field.get_ovlp())
+    # Parallel lightweight PySCF call for HF energy and MO data
+    mol = gto.M(
+        atom=atom_string,
+        basis=basis,
+        charge=charge,
+        spin=spin,
+        unit="Angstrom",
+        verbose=0,
+    )
+    mf = scf.RHF(mol) if spin == 0 else scf.UHF(mol)
+    hf_energy = mf.kernel()
 
     return MolecularIntegrals(
         one_body_integrals=one_body,

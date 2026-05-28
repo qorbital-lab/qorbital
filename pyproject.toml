@@ -29,8 +29,6 @@ dependencies = [
     "pyscf>=2.4",
     "numpy>=1.24",
     "scipy>=1.10",
-    "pytest>=9.0.3",
-    "ruff>=0.15.12",
 ]
 
 [project.optional-dependencies]
