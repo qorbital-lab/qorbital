@@ -54,11 +54,11 @@ Docs: https://qiskit-community.github.io/qiskit-nature/tutorials/01_electronic_s
 - **PySCF segfault**: Basis string issue. PySCF wants `"sto-3g"`, Qiskit Nature normalizes both forms
 - **VQE not converging**: Check optimizer (SLSQP/COBYLA), use HartreeFock initial state, print energy per iteration
 - **Integral shape mismatch**: PySCF uses chemist's notation `(ij|kl)`. Triangular-packed format needs unfolding
-- **Float comparison in tests**: Use `pytest.approx(expected, abs=1e-6)`, never `==`
+- **Float comparison in tests**: Use `pytest.approx(expected, abs=1e-6)` for float comparisons; avoid direct float-to-float `==` checks
 
 ## Do
 
-- Pin deps with upper bounds (`>=0.7,<0.8` not `>=0.7`)
+- Pin deps with upper bounds when ecosystem compatibility is sensitive (e.g., `qiskit>=1.4,<2`, `qiskit-ionq>=0.5,<1`)
 - Return structured dataclasses, not raw tuples
 - Document integral convention (chemist vs physicist) at module boundaries
 - Keep subpackage imports one-directional: chemistry → vqe → bohmian → viz
