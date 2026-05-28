@@ -47,8 +47,8 @@ export function createIsosurfaceMesh(density) {
       side: THREE.DoubleSide,
       transparent: true,
       opacity: 0.92,
-      emissive: new THREE.Color(0x222222),
-      emissiveIntensity: 0.15,
+      emissive: new THREE.Color(0x666666),
+      emissiveIntensity: 0.25,
     });
   } else {
     material = new THREE.MeshStandardMaterial({

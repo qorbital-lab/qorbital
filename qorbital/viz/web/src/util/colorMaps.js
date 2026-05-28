@@ -1,7 +1,7 @@
 /** Okabe–Ito–inspired lobe colors adapted for dark technical HUD. */
 
-export const LOBE_POSITIVE = 0xf0f0f0;
-export const LOBE_NEGATIVE = 0x2a2a2a;
+export const LOBE_POSITIVE = 0xf4f4f4;
+export const LOBE_NEGATIVE = 0x4a4a4a;
 export const LOBE_POSITIVE_EMISSIVE = 0x888888;
 export const ATOM_CORE = 0xe8e8e8;
 export const ATOM_SHELL = 0x333333;

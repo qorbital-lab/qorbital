@@ -27,9 +27,9 @@ export class SceneManager {
     this.controls.dampingFactor = 0.08;
     this.controls.target.set(0, 0, 0);
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.18);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.45);
     this.scene.add(ambient);
-    const key = new THREE.DirectionalLight(0xffffff, 0.55);
+    const key = new THREE.DirectionalLight(0xffffff, 0.85);
     key.position.set(5, 8, 6);
     this.scene.add(key);
 
@@ -54,8 +54,16 @@ export class SceneManager {
 
   _addReferenceGrid() {
     const grid = new THREE.GridHelper(6, 24, GRID_LINE, GRID_LINE);
-    grid.material.opacity = 0.25;
-    grid.material.transparent = true;
+    const gridMaterial = grid.material;
+    if (Array.isArray(gridMaterial)) {
+      for (const material of gridMaterial) {
+        material.opacity = 0.25;
+        material.transparent = true;
+      }
+    } else {
+      gridMaterial.opacity = 0.25;
+      gridMaterial.transparent = true;
+    }
     grid.position.y = -1.2;
     this.scene.add(grid);
 
@@ -73,9 +81,12 @@ export class SceneManager {
 
   resize() {
     const parent = this.canvas.parentElement;
-    if (!parent) return;
-    const width = parent.clientWidth;
-    const height = parent.clientHeight;
+    let width = parent?.clientWidth ?? 0;
+    let height = parent?.clientHeight ?? 0;
+    if (width === 0 || height === 0) {
+      width = window.innerWidth;
+      height = window.innerHeight;
+    }
     if (width === 0 || height === 0) return;
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();

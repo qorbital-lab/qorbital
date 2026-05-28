@@ -48,14 +48,19 @@ uv sync --all-extras
 
 ### Run the web demo
 
-The `qorbital serve` CLI is not wired up yet. Serve the static viewer from `qorbital/viz/web/` (required for ES modules and fixture loading):
+The `qorbital serve` CLI is not wired up yet. From the **repository root**, serve the viewer with:
 
 ```bash
-cd qorbital/viz/web
-python -m http.server 8000
+python3 scripts/serve_viewer.py
 ```
 
-Open [http://localhost:8000](http://localhost:8000) — you should see a mock H₂ isosurface with orbit/zoom/pan controls. Visualization data follows [ADR-004](docs/decisions/ADR-004-data-schema.md).
+Or manually:
+
+```bash
+python3 -m http.server 8000 --directory qorbital/viz/web
+```
+
+Open [http://localhost:8000](http://localhost:8000) — you should see a mock H₂ isosurface with orbit/zoom/pan controls. Press **H** to toggle the control panel. Visualization data follows [ADR-004](docs/decisions/ADR-004-data-schema.md).
 
 Regenerate the mock fixture after schema changes:
 

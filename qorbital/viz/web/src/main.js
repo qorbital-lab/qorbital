@@ -1,24 +1,46 @@
 import { QorbitalApp } from "./app/QorbitalApp.js";
 
-const app = new QorbitalApp({
-  canvas: document.getElementById("viewer-canvas"),
-  overlay: document.getElementById("overlay"),
-  hudPhase: document.getElementById("hud-phase"),
-  hudContext: document.getElementById("hud-context"),
-  minimap: document.getElementById("hud-minimap"),
-  metaMolecule: document.getElementById("meta-molecule"),
-  metaBond: document.getElementById("meta-bond"),
-  metaBasis: document.getElementById("meta-basis"),
-  metaMethod: document.getElementById("meta-method"),
-  metaBackend: document.getElementById("meta-backend"),
-  metaEnergy: document.getElementById("meta-energy"),
-  metaHf: document.getElementById("meta-hf"),
-  metaFci: document.getElementById("meta-fci"),
-  metaIsovalue: document.getElementById("meta-isovalue"),
-  controlsPanel: document.getElementById("controls-panel"),
-  moleculeLabel: document.getElementById("molecule-label"),
-  isovalueSlider: document.getElementById("isovalue-slider"),
-  isovalueReadout: document.getElementById("isovalue-readout"),
-});
+function requireElement(id) {
+  const element = document.getElementById(id);
+  if (!element) {
+    throw new Error(`Missing required element #${id}`);
+  }
+  return element;
+}
 
-window.qorbitalApp = app;
+function showBootstrapError(error) {
+  const overlay = document.getElementById("overlay");
+  if (!overlay) return;
+  overlay.classList.remove("hidden");
+  overlay.classList.add("error");
+  overlay.textContent =
+    error instanceof Error ? error.message : String(error);
+}
+
+try {
+  const app = new QorbitalApp({
+    canvas: requireElement("viewer-canvas"),
+    overlay: requireElement("overlay"),
+    hudPhase: requireElement("hud-phase"),
+    hudContext: requireElement("hud-context"),
+    minimap: requireElement("hud-minimap"),
+    metaMolecule: requireElement("meta-molecule"),
+    metaBond: requireElement("meta-bond"),
+    metaBasis: requireElement("meta-basis"),
+    metaMethod: requireElement("meta-method"),
+    metaBackend: requireElement("meta-backend"),
+    metaEnergy: requireElement("meta-energy"),
+    metaHf: requireElement("meta-hf"),
+    metaFci: requireElement("meta-fci"),
+    metaIsovalue: requireElement("meta-isovalue"),
+    controlsPanel: requireElement("controls-panel"),
+    moleculeLabel: requireElement("molecule-label"),
+    isovalueSlider: requireElement("isovalue-slider"),
+    isovalueReadout: requireElement("isovalue-readout"),
+  });
+
+  window.qorbitalApp = app;
+} catch (error) {
+  showBootstrapError(error);
+  console.error(error);
+}
