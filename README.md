@@ -48,15 +48,26 @@ uv sync --all-extras
 
 ### Run the web demo
 
-The `qorbital serve` CLI is not wired up yet. Until it lands, serve the static files under `qorbital/viz/web/` with any HTTP server (for example `python -m http.server` from that directory).
+The `qorbital serve` CLI is not wired up yet. Serve the static viewer from `qorbital/viz/web/` (required for ES modules and fixture loading):
+
+```bash
+cd qorbital/viz/web
+python -m http.server 8000
+```
+
+Open [http://localhost:8000](http://localhost:8000) — you should see a mock H₂ isosurface with orbit/zoom/pan controls. Visualization data follows [ADR-004](docs/decisions/ADR-004-data-schema.md).
+
+Regenerate the mock fixture after schema changes:
+
+```bash
+uv run python -c "from qorbital.viz.fixtures import write_h2_fixture; write_h2_fixture('qorbital/viz/web/fixtures/h2_mesh_v0.json')"
+```
 
 When available:
 
 ```bash
 uv run qorbital serve
 ```
-
-Then open [http://localhost:8000](http://localhost:8000) in your browser.
 
 ### Use as a Python library
 
@@ -74,6 +85,12 @@ density = qorbital.compute_density(result)
 
 # Export mesh for visualization
 mesh = qorbital.to_mesh(density, isovalue=0.02)
+
+# Render in PyVista (notebook)
+from qorbital.viz.pyvista_renderer import show_h2_mock
+
+plotter = show_h2_mock(show=False, jupyter_backend="trame")  # or "ipyvtklink"
+plotter.show()
 ```
 
 ## How It Works

@@ -2,9 +2,59 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>qOrbital</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>qOrbital Viewer</title>
+    <link rel="stylesheet" href="styles/viewer.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+        }
+      }
+    </script>
   </head>
   <body>
-    <p>qOrbital web viewer placeholder.</p>
+    <div id="app">
+      <aside id="sidebar">
+        <h1>qOrbital</h1>
+        <p class="subtitle">Quantum orbital viewer (skeleton)</p>
+
+        <section class="panel">
+          <h2>Molecule</h2>
+          <p id="molecule-label">—</p>
+          <p>Energy: <span id="energy-label">—</span></p>
+          <p class="disabled-hint">Molecule picker — issue #30</p>
+        </section>
+
+        <section class="panel">
+          <h2>Isosurface</h2>
+          <label for="isovalue-slider">Isovalue</label>
+          <input
+            id="isovalue-slider"
+            type="range"
+            min="0.005"
+            max="0.08"
+            step="0.001"
+            value="0.02"
+          />
+          <p><span id="isovalue-readout">0.020</span> (live update — issue #24)</p>
+        </section>
+
+        <section class="panel">
+          <h2>Layers</h2>
+          <p>Surface · Atoms (on)</p>
+          <p class="disabled-hint">Trajectories — issue #25</p>
+        </section>
+      </aside>
+
+      <main id="viewer-wrap">
+        <canvas id="viewer-canvas" aria-label="3D orbital viewer"></canvas>
+        <div id="overlay">Loading…</div>
+        <div id="status-bar">Initializing…</div>
+      </main>
+    </div>
+
+    <script type="module" src="src/main.js"></script>
   </body>
 </html>

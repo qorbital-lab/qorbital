@@ -1,0 +1,119 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  background: #0a0a12;
+  color: #e8e8f0;
+}
+
+#app {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  height: 100%;
+}
+
+#sidebar {
+  padding: 1rem 1.25rem;
+  border-right: 1px solid #2a2a3a;
+  overflow-y: auto;
+}
+
+#sidebar h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+#sidebar .subtitle {
+  margin: 0 0 1.25rem;
+  font-size: 0.8rem;
+  color: #9898b0;
+}
+
+.panel {
+  margin-bottom: 1.25rem;
+}
+
+.panel h2 {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #9898b0;
+}
+
+.panel p {
+  margin: 0.25rem 0;
+  font-size: 0.85rem;
+}
+
+.panel label {
+  display: block;
+  font-size: 0.8rem;
+  margin-bottom: 0.35rem;
+}
+
+.panel input[type="range"] {
+  width: 100%;
+}
+
+.panel .disabled-hint {
+  font-size: 0.75rem;
+  color: #686880;
+  font-style: italic;
+}
+
+#viewer-wrap {
+  position: relative;
+  min-height: 0;
+}
+
+#viewer-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+#status-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  background: rgba(10, 10, 18, 0.85);
+  border-top: 1px solid #2a2a3a;
+  pointer-events: none;
+}
+
+#overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 18, 0.75);
+  font-size: 0.95rem;
+  pointer-events: none;
+}
+
+#overlay.hidden {
+  display: none;
+}
+
+#overlay.error {
+  color: #ff8a80;
+}
