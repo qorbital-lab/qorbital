@@ -44,7 +44,7 @@ def compute_integrals(
     Registry names use *bond_length* (falling back to a default) to build the
     geometry.  Two-body integrals are returned in chemist's notation (ij|kl).
     """
-    from pyscf import ao2mo, gto, scf
+    from pyscf import ao2mo
     from qiskit_nature.second_q.drivers import PySCFDriver
     from qiskit_nature.units import DistanceUnit
 
@@ -69,12 +69,15 @@ def compute_integrals(
     two_body_packed = np.asarray(electronic_integrals.alpha["++--"])
     two_body = ao2mo.restore(1, two_body_packed, n_orb)
 
-    # Parallel lightweight PySCF call for HF energy and MO data
-    mol = gto.M(
-        atom=atom_string, basis=basis, charge=charge, spin=spin, unit="Angstrom"
-    )
-    mf = scf.RHF(mol)
-    hf_energy = mf.kernel()
+    # Reuse the SCF that PySCFDriver.run() already performed instead of running a
+    # second scf.*HF().kernel(), which would duplicate the (potentially expensive)
+    # SCF cost.  The driver stores the converged mean-field object on `_calc`, and
+    # its results are what the returned integrals/problem are built from, so the MO
+    # coefficients and overlap stay consistent with the Hamiltonian.
+    mean_field = driver._calc
+    hf_energy = mean_field.e_tot
+    mo_coefficients = np.asarray(mean_field.mo_coeff)
+    overlap_integrals = np.asarray(mean_field.get_ovlp())
 
     return MolecularIntegrals(
         one_body_integrals=one_body,
@@ -83,7 +86,7 @@ def compute_integrals(
         num_spatial_orbitals=problem.num_spatial_orbitals,
         num_particles=problem.num_particles,
         hf_energy=hf_energy,
-        overlap_integrals=mol.intor("int1e_ovlp"),
-        mo_coefficients=mf.mo_coeff,
+        overlap_integrals=overlap_integrals,
+        mo_coefficients=mo_coefficients,
         problem=problem,
     )
