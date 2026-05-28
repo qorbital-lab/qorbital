@@ -14,9 +14,28 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class MolecularIntegrals:
-    """One- and two-body integrals in the MO basis.
+    """Molecular integrals and SCF reference data for the VQE pipeline.
 
-    Two-body integrals use chemist's notation (ij|kl), matching PySCF convention.
+    Bases differ by field, so they are spelled out below to avoid misuse: the
+    one- and two-body integrals are in the **MO basis**, while ``overlap_integrals``
+    and ``mo_coefficients`` are in the **AO basis** (the overlap in the MO basis is
+    the identity by construction, hence not useful to return).
+
+    Attributes:
+        one_body_integrals: One-body integrals ``h_pq`` in the MO basis,
+            shape ``(n_mo, n_mo)``.
+        two_body_integrals: Two-body integrals ``(pq|rs)`` in the MO basis,
+            chemist's notation (matching PySCF), shape
+            ``(n_mo, n_mo, n_mo, n_mo)``.
+        nuclear_repulsion_energy: Nuclear repulsion energy, in Hartree.
+        num_spatial_orbitals: Number of spatial molecular orbitals (``n_mo``).
+        num_particles: ``(n_alpha, n_beta)`` electron counts.
+        hf_energy: Hartree-Fock total energy, in Hartree.
+        overlap_integrals: AO-basis overlap matrix ``S_uv``, shape
+            ``(n_ao, n_ao)``.
+        mo_coefficients: AO-to-MO transformation matrix ``C`` (columns are
+            MOs expressed in the AO basis), shape ``(n_ao, n_mo)``.
+        problem: The Qiskit Nature ``ElectronicStructureProblem`` for VQE.
     """
 
     one_body_integrals: NDArray[np.float64]
