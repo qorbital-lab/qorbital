@@ -70,10 +70,16 @@ def compute_integrals(
     two_body = ao2mo.restore(1, two_body_packed, n_orb)
 
     # Parallel lightweight PySCF call for HF energy and MO data
-      mol = gto.M(atom=atom_string, basis=basis, charge=charge, spin=spin, unit="Angstrom",
-          verbose=0,)
-      mf = scf.RHF(mol) if spin == 0 else scf.UHF(mol)
-      hf_energy = mf.kernel()
+    mol = gto.M(
+        atom=atom_string,
+        basis=basis,
+        charge=charge,
+        spin=spin,
+        unit="Angstrom",
+        verbose=0,
+    )
+    mf = scf.RHF(mol) if spin == 0 else scf.UHF(mol)
+    hf_energy = mf.kernel()
 
     return MolecularIntegrals(
         one_body_integrals=one_body,
