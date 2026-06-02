@@ -2,6 +2,10 @@ import * as THREE from "three";
 import { loadBundle } from "../loaders/BundleLoader.js";
 import { createAtomGlyphs } from "../geometry/AtomGlyphs.js";
 import { createIsosurfaceMesh } from "../geometry/IsosurfaceMesh.js";
+import { createDensityCloud } from "../geometry/DensityCloud.js";
+import { createDensityField } from "../density/densityField.js";
+import { loadGridValues } from "../density/loadGridValues.js";
+import { sampleDensityPoints } from "../density/samplePoints.js";
 import { SceneManager } from "../scene/SceneManager.js";
 import { drawMoleculeMinimap } from "../ui/MiniMap.js";
 import { disposeObject } from "../util/dispose.js";
@@ -18,6 +22,8 @@ export class QorbitalApp {
       /** @type {HTMLCanvasElement} */ (elements.canvas),
     );
     this._contentGroup = new THREE.Group();
+    this._currentBundle = null;
+    this._gridValues = null;
 
     /** @type {HTMLInputElement} */ (elements.isovalueSlider).disabled = true;
     elements.isovalueSlider.addEventListener("input", () => {
@@ -28,13 +34,59 @@ export class QorbitalApp {
       elements.metaIsovalue.textContent = value.toFixed(3);
     });
 
+    /** @type {HTMLInputElement} */ (elements.toggleCloud).checked =
+      this.state.showCloud;
+    /** @type {HTMLInputElement} */ (elements.toggleSurface).checked =
+      this.state.showSurface;
+    /** @type {HTMLInputElement} */ (elements.toggleAtoms).checked =
+      this.state.showAtoms;
+
+    elements.toggleCloud.addEventListener("change", () => {
+      this.state.showCloud =
+        /** @type {HTMLInputElement} */ (elements.toggleCloud).checked;
+      if (this._currentBundle) {
+        this.renderBundle(this._currentBundle);
+      }
+    });
+    elements.toggleSurface.addEventListener("change", () => {
+      this.state.showSurface =
+        /** @type {HTMLInputElement} */ (elements.toggleSurface).checked;
+      if (this._currentBundle) {
+        this.renderBundle(this._currentBundle);
+      }
+    });
+    elements.toggleAtoms.addEventListener("change", () => {
+      this.state.showAtoms =
+        /** @type {HTMLInputElement} */ (elements.toggleAtoms).checked;
+      if (this._currentBundle) {
+        this.renderBundle(this._currentBundle);
+      }
+    });
+
     window.addEventListener("keydown", (event) => {
-      if (event.key.toLowerCase() === "h") {
+      const key = event.key.toLowerCase();
+      if (key === "h") {
         this.toggleControls();
+      } else if (key === "c") {
+        this._setLayerToggle("showCloud", elements.toggleCloud);
+      } else if (key === "s") {
+        this._setLayerToggle("showSurface", elements.toggleSurface);
       }
     });
 
     this.load(this.state.bundleUrl);
+  }
+
+  /**
+   * @param {"showCloud" | "showSurface"} stateKey
+   * @param {HTMLInputElement} input
+   */
+  _setLayerToggle(stateKey, input) {
+    this.state[stateKey] = !this.state[stateKey];
+    input.checked = this.state[stateKey];
+    if (this._currentBundle) {
+      this.renderBundle(this._currentBundle);
+    }
   }
 
   toggleControls() {
@@ -79,11 +131,16 @@ export class QorbitalApp {
     const label = String(mol.label ?? mol.id);
     const basis = String(mol.basis ?? "—");
     const bond = Number(mol.bond_length_angstrom ?? 0);
-    const iso = Number(density.isovalue ?? 0.02);
+    const iso = Number(density.isovalue ?? density.default_isovalue ?? 0.02);
     const method = String(bundle.method ?? "unknown");
     const backendLabel = backend ? `${backend.provider}/${backend.name}` : "—";
 
-    this.elements.hudPhase.textContent = `Step 1/1 · ${method} · ρ(r) isosurface`;
+    const modeParts = [];
+    if (this.state.showCloud) modeParts.push("ρ(r) cloud");
+    if (this.state.showSurface) modeParts.push("isosurface");
+    const modeLabel = modeParts.length > 0 ? modeParts.join(" + ") : "layers off";
+
+    this.elements.hudPhase.textContent = `Step 1/1 · ${method} · ${modeLabel}`;
     this.elements.metaMolecule.textContent = `${label} (${basis})`;
     this.elements.metaBond.textContent = `${bond.toFixed(2)} Å`;
     this.elements.metaBasis.textContent = basis;
@@ -105,15 +162,20 @@ export class QorbitalApp {
     drawMoleculeMinimap(
       /** @type {HTMLCanvasElement} */ (this.elements.minimap),
       atoms,
+      { label, bondLength: bond, orbital: "1σ_g" },
     );
 
     const provenance = bundle.provenance
       ? /** @type {Record<string, string>} */ (bundle.provenance)
       : null;
     const runId = provenance?.run_id ?? "—";
+    const densitySource =
+      density.kind === "grid" && this._gridValues
+        ? "DensityGrid sidecar"
+        : "analytic σ-bond ρ(r)";
     this.elements.hudContext.textContent =
-      `Fixture view: |ψ|² isosurface from ADR-004 MeshSurface (run ${runId}). ` +
-      "VQE hardware density and step-through explainer arrive in later milestones.";
+      `${this.state.particleCount.toLocaleString()} Monte Carlo samples from ${densitySource} ` +
+      `(run ${runId}). C/S toggle cloud and isosurface.`;
   }
 
   /**
@@ -124,13 +186,19 @@ export class QorbitalApp {
     this._contentGroup = new THREE.Group();
 
     const density = /** @type {Record<string, unknown>} */ (bundle.density);
-    if (density.kind === "grid") {
-      throw new Error(
-        "DensityGrid marching cubes not implemented yet (see issue #24)",
+
+    if (this.state.showCloud) {
+      const field = createDensityField(bundle, this._gridValues);
+      const { positions, densities } = sampleDensityPoints(
+        field,
+        this.state.particleCount,
       );
+      if (densities.length > 0) {
+        this._contentGroup.add(createDensityCloud(positions, densities));
+      }
     }
 
-    if (this.state.showSurface) {
+    if (this.state.showSurface && density.kind === "mesh") {
       this._contentGroup.add(createIsosurfaceMesh(density));
     }
 
@@ -151,6 +219,11 @@ export class QorbitalApp {
     this.setOverlay("Loading…");
     try {
       const bundle = await loadBundle(url);
+      this._currentBundle = bundle;
+      this._gridValues = await loadGridValues(
+        url,
+        /** @type {Record<string, unknown>} */ (bundle.density),
+      );
       this.renderBundle(bundle);
       this.setOverlay("");
     } catch (err) {

@@ -22,13 +22,17 @@
         <div id="overlay">Loading…</div>
 
         <header class="hud hud-tl">
+          <div class="brand-lockup">
+            <p class="brand-logo" aria-label="qOrbital">
+              <span class="brand-q">q</span><span class="brand-name">Orbital</span>
+            </p>
+            <p class="brand-tag">electron density · vqe viz</p>
+          </div>
           <p id="hud-phase" class="hud-phase">Step — · initializing</p>
-          <canvas
-            id="hud-minimap"
-            width="72"
-            height="72"
-            aria-label="Molecule schematic"
-          ></canvas>
+          <div class="reference-inset">
+            <span class="reference-caption">ρ(r) · on-axis profile (x = y = 0)</span>
+            <canvas id="hud-minimap" aria-label="Bond-axis density profile"></canvas>
+          </div>
         </header>
 
         <aside class="hud hud-tr" id="hud-meta">
@@ -50,7 +54,9 @@
         </footer>
 
         <footer class="hud hud-br">
-          <p id="hud-shortcuts">H: toggle controls · drag: orbit · scroll: zoom</p>
+          <p id="hud-shortcuts">
+            H: controls · C: cloud · S: surface · drag: orbit · scroll: zoom
+          </p>
         </footer>
 
         <aside id="controls-panel" class="controls-panel" hidden>
@@ -73,7 +79,18 @@
 
           <section class="panel">
             <h3>Layers</h3>
-            <p>Density isosurface · nuclear centers</p>
+            <label class="layer-toggle">
+              <input id="toggle-cloud" type="checkbox" checked />
+              Probability cloud (ρ samples)
+            </label>
+            <label class="layer-toggle">
+              <input id="toggle-surface" type="checkbox" />
+              Iso-surface shell
+            </label>
+            <label class="layer-toggle">
+              <input id="toggle-atoms" type="checkbox" checked />
+              Nuclear centers
+            </label>
             <p class="hint">Trajectories — issue #25</p>
           </section>
 

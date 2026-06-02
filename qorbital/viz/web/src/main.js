@@ -37,6 +37,9 @@ try {
     moleculeLabel: requireElement("molecule-label"),
     isovalueSlider: requireElement("isovalue-slider"),
     isovalueReadout: requireElement("isovalue-readout"),
+    toggleCloud: requireElement("toggle-cloud"),
+    toggleSurface: requireElement("toggle-surface"),
+    toggleAtoms: requireElement("toggle-atoms"),
   });
 
   window.qorbitalApp = app;

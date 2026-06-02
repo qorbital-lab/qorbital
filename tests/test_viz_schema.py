@@ -4,7 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from qorbital.viz.fixtures import grid_mock_bundle, h2_mock_bundle, write_h2_fixture
+from qorbital.viz.fixtures import (
+    grid_mock_bundle,
+    h2_mock_bundle,
+    write_h2_fixture,
+    write_h2_grid_fixture,
+)
 from qorbital.viz.schema import (
     SCHEMA_VERSION,
     MeshSurface,
@@ -56,6 +61,13 @@ def test_committed_web_fixture():
     assert fixture.is_file(), "expected committed fixture h2_mesh_v0.json to exist"
     loaded = load_bundle(fixture)
     assert loaded.molecule.id == "H2"
+
+
+def test_write_h2_grid_fixture(tmp_path: Path):
+    json_path, bin_path = write_h2_grid_fixture(tmp_path)
+    loaded = load_bundle(json_path)
+    assert loaded.density.kind == "grid"
+    assert bin_path.stat().st_size == 21 * 21 * 21 * 4
 
 
 def test_unsupported_schema_version():
