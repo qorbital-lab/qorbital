@@ -50,9 +50,16 @@ OPTIMIZER_REGISTRY: dict[str, type] = {
 }
 
 
-def _build_ansatz(
-    qubit_hamiltonian: QubitHamiltonian,
-) -> tuple[UCCSD, JordanWignerMapper | ParityMapper]:
+def _build_ansatz(qubit_hamiltonian: QubitHamiltonian) -> UCCSD:
+    if (
+        qubit_hamiltonian.two_qubit_reduction
+        and qubit_hamiltonian.mapping is not QubitMapping.PARITY
+    ):
+        raise ValueError(
+            "two_qubit_reduction is only supported with parity mapping, "
+            f"got mapping={qubit_hamiltonian.mapping.value!r}"
+        )
+
     if qubit_hamiltonian.mapping is QubitMapping.JORDAN_WIGNER:
         mapper = JordanWignerMapper()
     elif qubit_hamiltonian.two_qubit_reduction:
@@ -73,7 +80,7 @@ def _build_ansatz(
         initial_state=initial_state,
     )
 
-    return ansatz, mapper
+    return ansatz
 
 
 def _make_callback(
@@ -102,7 +109,7 @@ def run_vqe_from_hamiltonian(
     max_iterations: int = 100,
     callback: Callable[[VQEIterationData], None] | None = None,
 ) -> VQEResult:
-    ansatz, mapper = _build_ansatz(qubit_hamiltonian)
+    ansatz = _build_ansatz(qubit_hamiltonian)
 
     optimizer_name = optimizer.upper()
     if optimizer_name not in OPTIMIZER_REGISTRY:

@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import numpy as np
 import pytest
 
@@ -91,6 +93,13 @@ def test_run_vqe_from_hamiltonian():
     qh = build_hamiltonian("H2", bond_length=0.735)
     result = run_vqe_from_hamiltonian(qh)
     assert result.total_energy == pytest.approx(FCI_TOTAL_ENERGY_H2, abs=1e-5)
+
+
+def test_two_qubit_reduction_requires_parity_mapping():
+    qh = build_hamiltonian("H2", bond_length=0.735, mapping="jordan_wigner")
+    inconsistent = replace(qh, two_qubit_reduction=True)
+    with pytest.raises(ValueError, match="parity"):
+        run_vqe_from_hamiltonian(inconsistent)
 
 
 def test_parity_2qr_also_converges():
