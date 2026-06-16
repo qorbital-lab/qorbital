@@ -1,17 +1,18 @@
 import * as THREE from "three";
-import { colorFromScalar } from "../util/colorMaps.js";
+import { colorFromScalar, emissiveFromScalar, WIREFRAME_EDGE } from "../util/colorMaps.js";
 
 /**
  * Build an isosurface mesh from ADR-004 MeshSurface data.
  *
  * @param {Record<string, unknown>} density
- * @returns {THREE.Mesh}
+ * @returns {THREE.Group}
  */
 export function createIsosurfaceMesh(density) {
   const vertices = /** @type {number[][]} */ (density.vertices);
   const faces = /** @type {number[][]} */ (density.faces);
   const scalars = /** @type {number[] | undefined} */ (density.vertex_scalars);
 
+  const group = new THREE.Group();
   const geometry = new THREE.BufferGeometry();
   const positions = new Float32Array(vertices.length * 3);
   for (let i = 0; i < vertices.length; i += 1) {
@@ -41,22 +42,48 @@ export function createIsosurfaceMesh(density) {
     geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
     material = new THREE.MeshStandardMaterial({
       vertexColors: true,
-      metalness: 0.1,
-      roughness: 0.65,
+      metalness: 0.05,
+      roughness: 0.85,
       side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.88,
+      opacity: 0.92,
+      emissive: new THREE.Color(0x666666),
+      emissiveIntensity: 0.25,
     });
   } else {
     material = new THREE.MeshStandardMaterial({
-      color: 0x4477aa,
-      metalness: 0.1,
-      roughness: 0.65,
+      color: 0x444444,
+      metalness: 0.05,
+      roughness: 0.85,
       side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.88,
+      opacity: 0.9,
     });
   }
 
-  return new THREE.Mesh(geometry, material);
+  const mesh = new THREE.Mesh(geometry, material);
+  group.add(mesh);
+
+  const edges = new THREE.EdgesGeometry(geometry, 12);
+  const wireframe = new THREE.LineSegments(
+    edges,
+    new THREE.LineBasicMaterial({
+      color: WIREFRAME_EDGE,
+      transparent: true,
+      opacity: 0.35,
+    }),
+  );
+  group.add(wireframe);
+
+  if (scalars && scalars.length === vertices.length) {
+    for (let i = 0; i < vertices.length; i += 1) {
+      if (scalars[i] >= 0 && emissiveFromScalar(scalars[i]) > 0) {
+        material.emissive = new THREE.Color(0xffffff);
+        material.emissiveIntensity = 0.08;
+        break;
+      }
+    }
+  }
+
+  return group;
 }

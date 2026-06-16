@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import struct
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -10,12 +11,25 @@ from qorbital.viz.schema import (
     SCHEMA_VERSION,
     AtomSpec,
     BackendInfo,
+    DensityGrid,
     MeshSurface,
     MoleculeSpec,
     Provenance,
     VisualizationBundle,
     save_bundle,
 )
+
+
+def _h2_sigma_density(x: float, y: float, z: float, half_bond: float) -> float:
+    """Mock H₂ σ-bond density (matches browser analytic sampler)."""
+    sigma_perp = 0.32
+    sigma_ax = 0.5
+    inv2_perp = 1.0 / (2.0 * sigma_perp * sigma_perp)
+    inv2_ax = 1.0 / (2.0 * sigma_ax * sigma_ax)
+    r2_perp = x * x + y * y
+    g0 = math.exp(-r2_perp * inv2_perp - (z + half_bond) ** 2 * inv2_ax)
+    g1 = math.exp(-r2_perp * inv2_perp - (z - half_bond) ** 2 * inv2_ax)
+    return g0 + g1
 
 
 def _ellipsoid_mesh(
@@ -94,11 +108,55 @@ def write_h2_fixture(path: str | Path) -> Path:
     return out
 
 
+def h2_grid_mock_bundle() -> VisualizationBundle:
+    """H₂ bundle with a small DensityGrid (sidecar path only; no file write)."""
+    bundle = h2_mock_bundle()
+    bundle.density = DensityGrid(
+        origin=[-1.6, -1.6, -1.6],
+        spacing=[0.16, 0.16, 0.16],
+        shape=[21, 21, 21],
+        values="h2_grid_v0.bin",
+        default_isovalue=0.02,
+    )
+    bundle.backend = BackendInfo(provider="fixture", name="h2_grid_v0")
+    if bundle.provenance is not None:
+        bundle.provenance.run_id = "fixture_h2_grid_v0"
+    return bundle
+
+
+def write_h2_grid_fixture(directory: str | Path) -> tuple[Path, Path]:
+    """Write H₂ grid JSON + float32 sidecar for the web viewer."""
+    out_dir = Path(directory)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    bundle = h2_grid_mock_bundle()
+    grid = bundle.density
+    assert isinstance(grid, DensityGrid)
+
+    nx, ny, nz = grid.shape
+    ox, oy, oz = grid.origin
+    sx, sy, sz = grid.spacing
+    half = bundle.molecule.bond_length_angstrom / 2.0
+
+    values: list[float] = []
+    for k in range(nz):
+        z = oz + k * sz
+        for j in range(ny):
+            y = oy + j * sy
+            for i in range(nx):
+                x = ox + i * sx
+                values.append(_h2_sigma_density(x, y, z, half))
+
+    bin_path = out_dir / grid.values
+    bin_path.write_bytes(struct.pack(f"<{len(values)}f", *values))
+
+    json_path = out_dir / "h2_grid_v0.json"
+    save_bundle(bundle, json_path)
+    return json_path, bin_path
+
+
 def grid_mock_bundle() -> VisualizationBundle:
     """Tiny density grid bundle for schema tests (no sidecar file)."""
     bundle = h2_mock_bundle()
-    from qorbital.viz.schema import DensityGrid
-
     bundle.density = DensityGrid(
         origin=[-2.0, -2.0, -2.0],
         spacing=[0.5, 0.5, 0.5],

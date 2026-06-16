@@ -7,106 +7,197 @@
 html,
 body {
   margin: 0;
-  height: 100%;
-  font-family:
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    sans-serif;
-  background: #0a0a12;
-  color: #e8e8f0;
-}
-
-#app {
-  display: grid;
-  grid-template-columns: 280px 1fr;
-  height: 100%;
-}
-
-#sidebar {
-  padding: 1rem 1.25rem;
-  border-right: 1px solid #2a2a3a;
-  overflow-y: auto;
-}
-
-#sidebar h1 {
-  margin: 0 0 0.25rem;
-  font-size: 1.25rem;
-  font-weight: 600;
-}
-
-#sidebar .subtitle {
-  margin: 0 0 1.25rem;
-  font-size: 0.8rem;
-  color: #9898b0;
-}
-
-.panel {
-  margin-bottom: 1.25rem;
-}
-
-.panel h2 {
-  margin: 0 0 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #9898b0;
-}
-
-.panel p {
-  margin: 0.25rem 0;
-  font-size: 0.85rem;
-}
-
-.panel label {
-  display: block;
-  font-size: 0.8rem;
-  margin-bottom: 0.35rem;
-}
-
-.panel input[type="range"] {
   width: 100%;
+  height: 100%;
+  min-height: 100vh;
+  overflow: hidden;
+  background: #000;
+  color: #c8c8c8;
+  font-family:
+    ui-monospace,
+    "SF Mono",
+    "Cascadia Code",
+    "Segoe UI Mono",
+    Menlo,
+    Consolas,
+    monospace;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
-.panel .disabled-hint {
-  font-size: 0.75rem;
-  color: #686880;
-  font-style: italic;
-}
-
+#app,
 #viewer-wrap {
-  position: relative;
-  min-height: 0;
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
 }
 
 #viewer-canvas {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
+  background: #000;
 }
 
-#status-bar {
+.hud {
+  position: absolute;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.hud-tl {
+  top: 14px;
+  left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.brand-lockup {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 2px;
+}
+
+.brand-logo {
+  position: relative;
+  margin: 0;
+  padding-left: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.brand-logo::before {
+  content: "";
   position: absolute;
   left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 0.5rem 1rem;
-  font-size: 0.75rem;
-  background: rgba(10, 10, 18, 0.85);
-  border-top: 1px solid #2a2a3a;
-  pointer-events: none;
+  top: 1px;
+  width: 6px;
+  height: 6px;
+  border-left: 1px solid #555;
+  border-top: 1px solid #555;
+}
+
+.brand-q {
+  color: #f2f2f2;
+}
+
+.brand-name {
+  color: #7a7a7a;
+  font-weight: 500;
+}
+
+.brand-tag {
+  margin: 0;
+  padding-left: 10px;
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #444;
+}
+
+.reference-inset {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.reference-caption {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #555;
+}
+
+#hud-minimap {
+  display: block;
+  border: 1px solid #252525;
+  border-radius: 2px;
+  background: #060606;
+  box-shadow:
+    inset 0 0 24px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+.hud-tr {
+  top: 14px;
+  right: 16px;
+  max-width: 280px;
+  text-align: right;
+}
+
+.hud-bl {
+  left: 16px;
+  bottom: 14px;
+  max-width: min(520px, 55vw);
+}
+
+.hud-br {
+  right: 16px;
+  bottom: 14px;
+  text-align: right;
+  color: #888;
+}
+
+.hud-phase {
+  margin: 0;
+  color: #e8e8e8;
+  letter-spacing: 0.02em;
+}
+
+.meta-list {
+  margin: 0;
+}
+
+.meta-list div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+}
+
+.meta-list dt {
+  color: #666;
+  font-weight: 400;
+}
+
+.meta-list dt::after {
+  content: ":";
+}
+
+.meta-list dd {
+  margin: 0;
+  color: #ddd;
+  min-width: 9rem;
+}
+
+#hud-context {
+  margin: 0;
+  color: #888;
+}
+
+#hud-shortcuts {
+  margin: 0;
 }
 
 #overlay {
   position: absolute;
   inset: 0;
+  z-index: 5;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(10, 10, 18, 0.75);
-  font-size: 0.95rem;
+  background: rgba(0, 0, 0, 0.82);
+  color: #ccc;
+  font-size: 13px;
   pointer-events: none;
 }
 
@@ -116,4 +207,82 @@ body {
 
 #overlay.error {
   color: #ff8a80;
+}
+
+.controls-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 4;
+  width: min(300px, 85vw);
+  height: 100%;
+  padding: 1rem 1.1rem;
+  background: rgba(0, 0, 0, 0.88);
+  border-right: 1px solid #222;
+  pointer-events: auto;
+  overflow-y: auto;
+}
+
+.controls-panel[hidden] {
+  display: none;
+}
+
+.controls-panel h2 {
+  margin: 0 0 1rem;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #666;
+}
+
+.panel {
+  margin-bottom: 1.25rem;
+}
+
+.panel h3 {
+  margin: 0 0 0.45rem;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #555;
+}
+
+.panel p {
+  margin: 0.2rem 0;
+  color: #aaa;
+}
+
+.panel label {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: #777;
+}
+
+.panel input[type="range"] {
+  width: 100%;
+  accent-color: #888;
+}
+
+.panel .readout {
+  color: #e0e0e0;
+}
+
+.panel .hint {
+  color: #555;
+  font-size: 11px;
+}
+
+.layer-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0.35rem 0;
+  color: #aaa;
+  cursor: pointer;
+}
+
+.layer-toggle input {
+  accent-color: #888;
 }
