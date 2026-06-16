@@ -71,7 +71,6 @@ def compute_integrals(
 
     atom_string = resolve_atom_string(atoms, bond_length)
 
-    # Qiskit Nature driver → ElectronicStructureProblem
     driver = PySCFDriver(
         atom=atom_string,
         basis=basis,
