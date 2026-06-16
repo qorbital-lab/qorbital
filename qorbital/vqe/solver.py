@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import numpy as np
 from numpy.typing import NDArray
-from qiskit.primitives import StatevectorEstimator
+from qiskit.primitives import BaseEstimatorV2, StatevectorEstimator
 from qiskit.quantum_info import Statevector
 from qiskit_algorithms import VQE
 from qiskit_algorithms.optimizers import COBYLA, SLSQP
@@ -17,6 +17,7 @@ from qorbital.chemistry.hamiltonian import (
     QubitMapping,
     build_hamiltonian,
 )
+from qorbital.vqe.backends import Backend, make_estimator
 
 
 @dataclass
@@ -108,6 +109,9 @@ def run_vqe_from_hamiltonian(
     optimizer: str = "SLSQP",
     max_iterations: int = 100,
     callback: Callable[[VQEIterationData], None] | None = None,
+    backend: Backend | str = Backend.AER,
+    shots: int = 1024,
+    estimator: BaseEstimatorV2 | None = None,
 ) -> VQEResult:
     ansatz = _build_ansatz(qubit_hamiltonian)
 
@@ -118,7 +122,8 @@ def run_vqe_from_hamiltonian(
         )
     opt = OPTIMIZER_REGISTRY[optimizer_name](maxiter=max_iterations)
 
-    estimator = StatevectorEstimator()
+    if estimator is None:
+        estimator = make_estimator(backend, shots=shots)
 
     convergence_history: list[VQEIterationData] = []
     vqe_callback = _make_callback(convergence_history, callback)
@@ -164,6 +169,9 @@ def run_vqe(
     optimizer: str = "SLSQP",
     max_iterations: int = 100,
     callback: Callable[[VQEIterationData], None] | None = None,
+    backend: Backend | str = Backend.AER,
+    shots: int = 1024,
+    estimator: BaseEstimatorV2 | None = None,
 ) -> VQEResult:
     qh = build_hamiltonian(
         atoms,
@@ -179,4 +187,7 @@ def run_vqe(
         optimizer=optimizer,
         max_iterations=max_iterations,
         callback=callback,
+        backend=backend,
+        shots=shots,
+        estimator=estimator,
     )

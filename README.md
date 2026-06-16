@@ -74,6 +74,38 @@ When available:
 uv run qorbital serve
 ```
 
+### Pipeline (current state)
+
+End-to-end flow for **H₂**, **HeH⁺**, and **LiH**:
+
+```
+PySCF integrals → Hamiltonian (JW/parity) → VQE (Aer / IonQ-sim) → density grid → Bohmian trajectories → web bundle
+```
+
+| Module | Purpose |
+|--------|---------|
+| `qorbital.chemistry.integrals` | PySCF + Qiskit Nature integrals |
+| `qorbital.chemistry.hamiltonian` | JW / parity qubit mapping |
+| `qorbital.vqe.solver` | UCCSD VQE with backend selector |
+| `qorbital.vqe.submit` | CLI submission + run logs in `data/runs/` |
+| `qorbital.chemistry.density` | 1-RDM → density grid + `wavefunction_grid()` |
+| `qorbital.bohmian` | Velocity field, RK45 integrator, uncertainty cloud |
+| `qorbital.chemistry.pes` | PES generator with JSON cache in `data/pes/` |
+| `qorbital.chemistry.hartree_fock` | HF density for classical overlay |
+| `qorbital.viz.trajectories` | ADR-004 bundle export for the web viewer |
+
+```bash
+# Submit a VQE run (sim-only: uses Aer shot noise as IonQ stand-in)
+python -m qorbital.vqe.submit --molecule h2 --backend ionq_sim --shots 1000
+
+# Generate H₂ + HeH⁺ visualization bundles
+python scripts/generate_bundles.py
+
+# H₂ ensemble + LiH bond sweep (sim-only)
+python scripts/run_h2_ensemble.py --n-runs 3
+python scripts/run_lih_sweep.py --runs-per-length 1
+```
+
 ### Use as a Python library
 
 ```python

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Callable
 
 MOLECULE_REGISTRY: dict[str, Callable[[float], str]] = {
@@ -17,6 +18,33 @@ DEFAULT_BOND_LENGTHS: dict[str, float] = {
     "LiH": 1.596,
     "BeH2": 1.326,
 }
+
+
+@dataclass(frozen=True)
+class MoleculeParams:
+    """Per-molecule charge, spin, and preferred qubit mapping."""
+
+    charge: int = 0
+    spin: int = 0
+    mapping: str = "jordan_wigner"
+    two_qubit_reduction: bool = False
+
+
+MOLECULE_PARAMS: dict[str, MoleculeParams] = {
+    "H2": MoleculeParams(charge=0, spin=0, mapping="jordan_wigner"),
+    "HeH+": MoleculeParams(charge=1, spin=0, mapping="jordan_wigner"),
+    "LiH": MoleculeParams(
+        charge=0, spin=0, mapping="parity", two_qubit_reduction=True
+    ),
+    "BeH2": MoleculeParams(charge=0, spin=0, mapping="jordan_wigner"),
+}
+
+
+def get_molecule_params(name: str) -> MoleculeParams:
+    """Return charge/spin/mapping defaults for a registry molecule."""
+    if name not in MOLECULE_PARAMS:
+        return MoleculeParams()
+    return MOLECULE_PARAMS[name]
 
 
 def resolve_atom_string(atoms: str, bond_length: float | None = None) -> str:

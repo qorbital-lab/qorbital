@@ -1,0 +1,71 @@
+{
+  "schema_version": "0.1.0",
+  "molecule": {
+    "id": "HeH+",
+    "label": "HeH\u207a",
+    "bond_length_angstrom": 0.772,
+    "basis": "sto-3g",
+    "atoms": [
+      {
+        "symbol": "He",
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "symbol": "H",
+        "position": [
+          0.0,
+          0.0,
+          0.772
+        ]
+      }
+    ]
+  },
+  "method": "vqe",
+  "density": {
+    "kind": "grid",
+    "origin": [
+      -3.0,
+      -3.0,
+      -3.0
+    ],
+    "spacing": [
+      0.20689655172413793,
+      0.20689655172413793,
+      0.23351724329465878
+    ],
+    "shape": [
+      30,
+      30,
+      30
+    ],
+    "values": "heh+_density.bin",
+    "value_encoding": "float32-le",
+    "units": "electron_density_au",
+    "default_isovalue": 0.02
+  },
+  "backend": {
+    "provider": "qorbital",
+    "name": "aer"
+  },
+  "energy_hartree": -2.8510239754466378,
+  "reference_energies": {
+    "hf": -2.8413824898284137
+  },
+  "trajectories": {
+    "particles": 20,
+    "steps": 100,
+    "dt": 0.1,
+    "paths": "heh+_trajectories.bin",
+    "path_layout": "particle-major",
+    "color_by": "speed"
+  },
+  "provenance": {
+    "run_id": "heh+_20260616_195326",
+    "created_at": "2026-06-16T19:53:26Z",
+    "git_sha": ""
+  }
+}

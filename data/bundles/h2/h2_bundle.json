@@ -1,0 +1,71 @@
+{
+  "schema_version": "0.1.0",
+  "molecule": {
+    "id": "H2",
+    "label": "H2",
+    "bond_length_angstrom": 0.735,
+    "basis": "sto-3g",
+    "atoms": [
+      {
+        "symbol": "H",
+        "position": [
+          0.0,
+          0.0,
+          -0.3675
+        ]
+      },
+      {
+        "symbol": "H",
+        "position": [
+          0.0,
+          0.0,
+          0.3675
+        ]
+      }
+    ]
+  },
+  "method": "vqe",
+  "density": {
+    "kind": "grid",
+    "origin": [
+      -3.0,
+      -3.0,
+      -3.0
+    ],
+    "spacing": [
+      0.20689655172413793,
+      0.20689655172413793,
+      0.23224138113389547
+    ],
+    "shape": [
+      30,
+      30,
+      30
+    ],
+    "values": "h2_density.bin",
+    "value_encoding": "float32-le",
+    "units": "electron_density_au",
+    "default_isovalue": 0.02
+  },
+  "backend": {
+    "provider": "qorbital",
+    "name": "aer"
+  },
+  "energy_hartree": -1.1373060356946834,
+  "reference_energies": {
+    "hf": -1.1169989967540044
+  },
+  "trajectories": {
+    "particles": 20,
+    "steps": 100,
+    "dt": 0.1,
+    "paths": "h2_trajectories.bin",
+    "path_layout": "particle-major",
+    "color_by": "speed"
+  },
+  "provenance": {
+    "run_id": "h2_20260616_195325",
+    "created_at": "2026-06-16T19:53:25Z",
+    "git_sha": ""
+  }
+}

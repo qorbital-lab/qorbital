@@ -1,0 +1,17 @@
+{
+  "molecule": "H2",
+  "points": [
+    {
+      "bond_length": 0.6,
+      "energy": -1.1162860068317937
+    },
+    {
+      "bond_length": 0.735,
+      "energy": -1.1373060356946834
+    },
+    {
+      "bond_length": 0.9,
+      "energy": -1.12056012976989
+    }
+  ]
+}
