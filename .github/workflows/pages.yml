@@ -3,6 +3,7 @@ name: Deploy GitHub Pages
 on:
   push:
     branches: [integration/3day]
+  workflow_dispatch:
 
 permissions:
   contents: read
