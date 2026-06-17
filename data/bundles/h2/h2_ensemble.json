@@ -1,0 +1,156 @@
+{
+  "schema_version": "0.1.0",
+  "molecule": "H2",
+  "label": "H\u2082",
+  "bond_length_angstrom": 0.735,
+  "path_layout": "particle-major",
+  "color_by": "speed",
+  "particles": 20,
+  "steps": 100,
+  "dt": 0.1,
+  "runs": [
+    {
+      "run_id": "h2_ensemble_00_03aef8",
+      "paths": "h2_ens_00.bin",
+      "particles": 20,
+      "steps": 100,
+      "dt": 0.1,
+      "shots": 500,
+      "backend": "ionq_sim",
+      "energy_hartree": -1.138272840781128,
+      "bond_length": 0.735
+    },
+    {
+      "run_id": "h2_ensemble_00_d6f230",
+      "paths": "h2_ens_01.bin",
+      "particles": 20,
+      "steps": 100,
+      "dt": 0.1,
+      "shots": 500,
+      "backend": "ionq_sim",
+      "energy_hartree": -1.1384508474931037,
+      "bond_length": 0.735
+    },
+    {
+      "run_id": "h2_ensemble_01_6fff85",
+      "paths": "h2_ens_02.bin",
+      "particles": 20,
+      "steps": 100,
+      "dt": 0.1,
+      "shots": 500,
+      "backend": "ionq_sim",
+      "energy_hartree": -1.1384875710687683,
+      "bond_length": 0.735
+    },
+    {
+      "run_id": "h2_ensemble_01_e88f51",
+      "paths": "h2_ens_03.bin",
+      "particles": 20,
+      "steps": 100,
+      "dt": 0.1,
+      "shots": 1000,
+      "backend": "ionq_sim",
+      "energy_hartree": -1.136400618074397,
+      "bond_length": 0.735
+    },
+    {
+      "run_id": "h2_ensemble_02_73bd23",
+      "paths": "h2_ens_04.bin",
+      "particles": 20,
+      "steps": 100,
+      "dt": 0.1,
+      "shots": 5000,
+      "backend": "ionq_sim",
+      "energy_hartree": -1.136900538490554,
+      "bond_length": 0.735
+    },
+    {
+      "run_id": "h2_ensemble_02_9cadb8",
+      "paths": "h2_ens_05.bin",
+      "particles": 20,
+      "steps": 100,
+      "dt": 0.1,
+      "shots": 1000,
+      "backend": "ionq_sim",
+      "energy_hartree": -1.1389466684816358,
+      "bond_length": 0.735
+    },
+    {
+      "run_id": "h2_ensemble_03_3236ca",
+      "paths": "h2_ens_06.bin",
+      "particles": 20,
+      "steps": 100,
+      "dt": 0.1,
+      "shots": 5000,
+      "backend": "ionq_sim",
+      "energy_hartree": -1.1379364603700208,
+      "bond_length": 0.735
+    },
+    {
+      "run_id": "h2_ensemble_04_8d05f8",
+      "paths": "h2_ens_07.bin",
+      "particles": 20,
+      "steps": 100,
+      "dt": 0.1,
+      "shots": 5000,
+      "backend": "ionq_sim",
+      "energy_hartree": -1.1372157633946647,
+      "bond_length": 0.735
+    },
+    {
+      "run_id": "h2_ensemble_05_4d0b95",
+      "paths": "h2_ens_08.bin",
+      "particles": 20,
+      "steps": 100,
+      "dt": 0.1,
+      "shots": 5000,
+      "backend": "ionq_sim",
+      "energy_hartree": -1.1358290744214963,
+      "bond_length": 0.735
+    },
+    {
+      "run_id": "h2_ensemble_06_329a88",
+      "paths": "h2_ens_09.bin",
+      "particles": 20,
+      "steps": 100,
+      "dt": 0.1,
+      "shots": 5000,
+      "backend": "ionq_sim",
+      "energy_hartree": -1.1379661770168126,
+      "bond_length": 0.735
+    },
+    {
+      "run_id": "h2_ensemble_07_d87fd4",
+      "paths": "h2_ens_10.bin",
+      "particles": 20,
+      "steps": 100,
+      "dt": 0.1,
+      "shots": 5000,
+      "backend": "ionq_sim",
+      "energy_hartree": -1.1371342874470545,
+      "bond_length": 0.735
+    },
+    {
+      "run_id": "h2_ensemble_08_3c6cf3",
+      "paths": "h2_ens_11.bin",
+      "particles": 20,
+      "steps": 100,
+      "dt": 0.1,
+      "shots": 5000,
+      "backend": "ionq_sim",
+      "energy_hartree": -1.136779151768168,
+      "bond_length": 0.735
+    },
+    {
+      "run_id": "h2_ensemble_09_ba36f9",
+      "paths": "h2_ens_12.bin",
+      "particles": 20,
+      "steps": 100,
+      "dt": 0.1,
+      "shots": 5000,
+      "backend": "ionq_sim",
+      "energy_hartree": -1.1371666284717032,
+      "bond_length": 0.735
+    }
+  ]
+}

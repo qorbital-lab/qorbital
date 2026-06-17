@@ -7,6 +7,8 @@ export const initialState = {
   showSurface: false,
   showAtoms: true,
   showTrajectories: true,
+  showEnsemble: false,
+  trajectoryPlaying: true,
   particleCount: 10000,
   previewBond: null,
 };

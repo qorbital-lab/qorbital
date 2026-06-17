@@ -28,10 +28,24 @@
             </p>
             <p class="brand-tag">electron density · vqe viz</p>
           </div>
+          <p id="hud-backend-badge" class="backend-badge">—</p>
           <p id="hud-phase" class="hud-phase">Step — · initializing</p>
           <div class="reference-inset">
             <span class="reference-caption">ρ(r) · on-axis profile (x = y = 0)</span>
             <canvas id="hud-minimap" aria-label="Bond-axis density profile"></canvas>
+          </div>
+          <div class="legend" id="hud-legend">
+            <div class="legend-row">
+              <span class="legend-label">ρ(r)</span>
+              <canvas id="legend-density" class="legend-bar"></canvas>
+              <span class="legend-max" id="legend-density-max">—</span>
+            </div>
+            <div class="legend-row">
+              <span class="legend-label">|v|</span>
+              <canvas id="legend-speed" class="legend-bar"></canvas>
+              <span class="legend-max" id="legend-speed-max">—</span>
+            </div>
+            <p class="legend-scale" id="legend-scale">grid 0.25 Å / div</p>
           </div>
         </header>
 
@@ -54,15 +68,40 @@
         </footer>
 
         <footer class="hud hud-br">
+          <p id="hud-attribution" class="attribution">
+            This effort is supported via compute credits from Qollab and IonQ.
+          </p>
           <p id="hud-shortcuts">
-            H: controls · C: cloud · S: surface · T: trajectories · drag: orbit · scroll: zoom
+            H: controls · C: cloud · S: surface · T: trajectories · E: ensemble · space: play/pause · drag: orbit · scroll: zoom
           </p>
         </footer>
+
+        <nav class="hud toolbar" id="hud-toolbar" aria-label="Viewer controls">
+          <div class="toolbar-group">
+            <button class="tbtn" id="btn-cloud" type="button">Cloud</button>
+            <button class="tbtn" id="btn-surface" type="button">Surface</button>
+            <button class="tbtn" id="btn-traj" type="button">Trajectories</button>
+            <button class="tbtn" id="btn-ensemble" type="button">Ensemble</button>
+            <button class="tbtn" id="btn-play" type="button">Pause</button>
+          </div>
+          <span class="toolbar-sep"></span>
+          <div class="toolbar-group">
+            <button class="tbtn" id="btn-preset-copenhagen" type="button">Copenhagen</button>
+            <button class="tbtn" id="btn-preset-bohmian" type="button">Bohmian</button>
+            <button class="tbtn" id="btn-preset-ensemble" type="button">Noise ensemble</button>
+          </div>
+          <span class="toolbar-sep"></span>
+          <div class="toolbar-group">
+            <button class="tbtn" id="btn-tour" type="button">Tour</button>
+            <button class="tbtn" id="btn-reset" type="button">Reset</button>
+            <button class="tbtn" id="btn-save" type="button">Save PNG</button>
+          </div>
+        </nav>
 
         <aside id="controls-panel" class="controls-panel" hidden>
           <h2>Controls</h2>
 
-          <section class="panel">
+          <section class="panel" id="panel-isosurface" hidden>
             <h3>Isosurface</h3>
             <label for="isovalue-slider">ρ(r) threshold</label>
             <input
@@ -74,7 +113,7 @@
               value="0.02"
             />
             <p class="readout"><span id="isovalue-readout">0.020</span> a.u.</p>
-            <p class="hint">Live isovalue update — issue #24</p>
+            <p class="hint">Live isovalue update (mesh bundles)</p>
           </section>
 
           <section class="panel">
@@ -83,7 +122,7 @@
               <input id="toggle-cloud" type="checkbox" checked />
               Probability cloud (ρ samples)
             </label>
-            <label class="layer-toggle">
+            <label class="layer-toggle" id="surface-toggle-label">
               <input id="toggle-surface" type="checkbox" />
               Iso-surface shell
             </label>
@@ -95,6 +134,11 @@
               <input id="toggle-trajectories" type="checkbox" checked />
               Bohmian trajectories
             </label>
+            <label class="layer-toggle">
+              <input id="toggle-ensemble" type="checkbox" />
+              Hardware-noise ensemble
+            </label>
+            <p id="ensemble-hint" class="hint">Overlay of IonQ VQE runs — noise cloud</p>
           </section>
 
           <section class="panel">

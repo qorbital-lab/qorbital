@@ -33,6 +33,13 @@ try {
     metaHf: requireElement("meta-hf"),
     metaFci: requireElement("meta-fci"),
     metaIsovalue: requireElement("meta-isovalue"),
+    backendBadge: requireElement("hud-backend-badge"),
+    legendDensity: requireElement("legend-density"),
+    legendSpeed: requireElement("legend-speed"),
+    legendDensityMax: requireElement("legend-density-max"),
+    legendSpeedMax: requireElement("legend-speed-max"),
+    panelIsosurface: requireElement("panel-isosurface"),
+    surfaceToggleLabel: requireElement("surface-toggle-label"),
     controlsPanel: requireElement("controls-panel"),
     moleculeLabel: requireElement("molecule-label"),
     moleculeSelect: requireElement("molecule-select"),
@@ -45,6 +52,8 @@ try {
     toggleSurface: requireElement("toggle-surface"),
     toggleAtoms: requireElement("toggle-atoms"),
     toggleTrajectories: requireElement("toggle-trajectories"),
+    toggleEnsemble: requireElement("toggle-ensemble"),
+    ensembleHint: requireElement("ensemble-hint"),
   });
 
   window.qorbitalApp = app;

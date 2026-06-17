@@ -146,12 +146,74 @@ body {
   bottom: 14px;
   text-align: right;
   color: #888;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.attribution {
+  margin: 0;
+  color: #6f7c8c;
+  font-size: 10px;
+  letter-spacing: 0.02em;
 }
 
 .hud-phase {
   margin: 0;
   color: #e8e8e8;
   letter-spacing: 0.02em;
+}
+
+.backend-badge {
+  margin: 0;
+  padding: 2px 7px;
+  align-self: flex-start;
+  border: 1px solid #2c2c2c;
+  border-radius: 3px;
+  background: rgba(18, 18, 18, 0.7);
+  color: #b9c6d6;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-label {
+  width: 26px;
+  color: #8a8a8a;
+  font-size: 9px;
+  font-style: italic;
+}
+
+.legend-bar {
+  display: block;
+  border-radius: 1px;
+}
+
+.legend-max {
+  color: #cfcfcf;
+  font-size: 9px;
+  min-width: 44px;
+}
+
+.legend-scale {
+  margin: 1px 0 0;
+  color: #555;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .meta-list {
@@ -207,6 +269,68 @@ body {
 
 #overlay.error {
   color: #ff8a80;
+}
+
+.toolbar {
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: 92vw;
+  padding: 6px 8px;
+  border: 1px solid #222;
+  border-radius: 6px;
+  background: rgba(10, 10, 10, 0.74);
+  backdrop-filter: blur(6px);
+  pointer-events: auto;
+}
+
+.toolbar-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.toolbar-sep {
+  width: 1px;
+  align-self: stretch;
+  background: #2a2a2a;
+}
+
+.tbtn {
+  padding: 4px 9px;
+  border: 1px solid #2e2e2e;
+  border-radius: 4px;
+  background: #141414;
+  color: #b6b6b6;
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.tbtn:hover {
+  background: #1d1d1d;
+  color: #e6e6e6;
+}
+
+.tbtn[data-active="true"] {
+  background: #2a3340;
+  border-color: #3f5468;
+  color: #d8e6f4;
+}
+
+.tbtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .controls-panel {
@@ -309,4 +433,9 @@ body {
 
 .layer-toggle input {
   accent-color: #888;
+}
+
+.layer-toggle.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
