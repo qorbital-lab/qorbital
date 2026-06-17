@@ -1,7 +1,7 @@
 /** Viewer UI + data state (skeleton). */
 
 export const initialState = {
-  bundleUrl: "fixtures/h2_mesh_v0.json",
+  bundleUrl: "bundles/h2/h2_bundle.json",
   isovalue: 0.02,
   showCloud: true,
   showSurface: false,

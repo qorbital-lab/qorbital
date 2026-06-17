@@ -4,6 +4,8 @@
 
 **Interactive quantum chemistry orbital visualizer — compute molecular ground states with VQE on real quantum hardware and explore 3D electron density isosurfaces in the browser.**
 
+**Live demo:** https://qorbital-lab.github.io/qorbital/
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CI](https://github.com/qorbital-lab/qorbital/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/qorbital-lab/qorbital/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10+-green.svg)](https://python.org)
@@ -48,7 +50,16 @@ uv sync --all-extras
 
 ### Run the web demo
 
-The `qorbital serve` CLI is not wired up yet. From the **repository root**, serve the viewer with:
+**Live:** [qorbital-lab.github.io/qorbital](https://qorbital-lab.github.io/qorbital/) (auto-deploys on push to `integration/3day`)
+
+Local preview of the Pages artifact:
+
+```bash
+python3 scripts/prepare_pages_site.py
+python3 -m http.server 8000 --directory _site
+```
+
+Or serve the dev viewer directly:
 
 ```bash
 python3 scripts/serve_viewer.py
@@ -60,7 +71,9 @@ Or manually:
 python3 -m http.server 8000 --directory qorbital/viz/web
 ```
 
-Open [http://localhost:8000](http://localhost:8000) — you should see a mock H₂ isosurface with orbit/zoom/pan controls. Press **H** to toggle the control panel. Visualization data follows [ADR-004](docs/decisions/ADR-004-data-schema.md).
+Open [http://localhost:8000](http://localhost:8000) — H₂ VQE density cloud with orbit/zoom/pan controls. Press **H** to toggle the control panel. Swap molecules via query param, e.g. `?bundle=bundles/heh%2B/heh%2B_bundle.json`. Visualization data follows [ADR-004](docs/decisions/ADR-004-data-schema.md).
+
+Push to `integration/3day` (or `main` after merge) auto-deploys via [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
 
 Regenerate the mock fixture after schema changes:
 

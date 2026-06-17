@@ -74,7 +74,11 @@ export class QorbitalApp {
       }
     });
 
-    this.load(this.state.bundleUrl);
+    const params = new URLSearchParams(window.location.search);
+    const bundleUrl = params.get("bundle") ?? initialState.bundleUrl;
+    this.state.bundleUrl = bundleUrl;
+
+    this.load(bundleUrl);
   }
 
   /**
