@@ -15,6 +15,7 @@ def run_lih_sweep(
     bond_lengths: list[float] | None = None,
     runs_per_length: int = 2,
     shots: int = 5000,
+    max_iterations: int = 30,
 ) -> None:
     """Submit LiH VQE runs at multiple bond lengths."""
     if bond_lengths is None:
@@ -30,6 +31,7 @@ def run_lih_sweep(
                 bond_length=r,
                 backend=Backend.IONQ_SIM,
                 shots=shots,
+                max_iterations=max_iterations,
                 run_id=f"lih_r{r:.3f}_{j}_{uuid.uuid4().hex[:6]}",
             )
             print(f"Completed LiH sweep {count}/{total} (R={r:.3f} Å)")
@@ -45,11 +47,13 @@ def main() -> None:
     )
     parser.add_argument("--runs-per-length", type=int, default=2)
     parser.add_argument("--shots", type=int, default=5000)
+    parser.add_argument("--max-iterations", type=int, default=30)
     args = parser.parse_args()
     run_lih_sweep(
         bond_lengths=args.bond_lengths,
         runs_per_length=args.runs_per_length,
         shots=args.shots,
+        max_iterations=args.max_iterations,
     )
 
 

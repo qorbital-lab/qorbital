@@ -14,6 +14,7 @@ def run_h2_ensemble(
     shots: int = 5000,
     noisy_shots: int = 500,
     n_noisy: int = 2,
+    max_iterations: int = 100,
 ) -> None:
     """Submit independent H2 VQE runs and persist logs."""
     for i in range(n_runs):
@@ -22,6 +23,7 @@ def run_h2_ensemble(
             "H2",
             backend=Backend.IONQ_SIM,
             shots=run_shots,
+            max_iterations=max_iterations,
             run_id=f"h2_ensemble_{i:02d}_{uuid.uuid4().hex[:6]}",
         )
         print(f"Completed H2 ensemble run {i + 1}/{n_runs} ({run_shots} shots)")
@@ -33,12 +35,14 @@ def main() -> None:
     parser.add_argument("--shots", type=int, default=5000)
     parser.add_argument("--noisy-shots", type=int, default=500)
     parser.add_argument("--n-noisy", type=int, default=2)
+    parser.add_argument("--max-iterations", type=int, default=100)
     args = parser.parse_args()
     run_h2_ensemble(
         n_runs=args.n_runs,
         shots=args.shots,
         noisy_shots=args.noisy_shots,
         n_noisy=args.n_noisy,
+        max_iterations=args.max_iterations,
     )
 
 

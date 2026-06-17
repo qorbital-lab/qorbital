@@ -101,9 +101,13 @@ python -m qorbital.vqe.submit --molecule h2 --backend ionq_sim --shots 1000
 # Generate H₂ + HeH⁺ visualization bundles
 python scripts/generate_bundles.py
 
-# H₂ ensemble + LiH bond sweep (sim-only)
-python scripts/run_h2_ensemble.py --n-runs 3
-python scripts/run_lih_sweep.py --runs-per-length 1
+# H₂ ensemble + LiH bond sweep (sim-only; LiH ~6 min/run at 30 iter)
+python scripts/run_h2_ensemble.py --n-runs 10
+python scripts/run_lih_sweep.py --runs-per-length 2 --max-iterations 30
+
+# PES cache for bond-length slider (LiH: use --method exact for fast reference curve)
+python scripts/compute_pes_cache.py --molecule H2 --method vqe
+python scripts/compute_pes_cache.py --molecule LiH --method exact
 ```
 
 ### Use as a Python library

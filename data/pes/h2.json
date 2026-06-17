@@ -2,16 +2,44 @@
   "molecule": "H2",
   "points": [
     {
-      "bond_length": 0.6,
-      "energy": -1.1162860068317937
+      "bond_length": 0.55,
+      "energy": -1.0926299067151097
+    },
+    {
+      "bond_length": 0.65,
+      "energy": -1.1299047842761816
     },
     {
       "bond_length": 0.735,
-      "energy": -1.1373060356946834
+      "energy": -1.1373060356947482
     },
     {
-      "bond_length": 0.9,
-      "energy": -1.12056012976989
+      "bond_length": 0.85,
+      "energy": -1.1283615733180024
+    },
+    {
+      "bond_length": 0.95,
+      "energy": -1.1113393620368748
+    },
+    {
+      "bond_length": 1.05,
+      "energy": -1.0903421760676166
+    },
+    {
+      "bond_length": 1.15,
+      "energy": -1.067929651345423
+    },
+    {
+      "bond_length": 1.25,
+      "energy": -1.0457831423707744
+    },
+    {
+      "bond_length": 1.35,
+      "energy": -1.0250543598379682
+    },
+    {
+      "bond_length": 1.5,
+      "energy": -0.9981493525177274
     }
   ]
 }

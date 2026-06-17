@@ -1,0 +1,45 @@
+{
+  "molecule": "LiH",
+  "points": [
+    {
+      "bond_length": 1.2,
+      "energy": -7.852430853195892
+    },
+    {
+      "bond_length": 1.35,
+      "energy": -7.874581847847786
+    },
+    {
+      "bond_length": 1.5,
+      "energy": -7.882362286798711
+    },
+    {
+      "bond_length": 1.596,
+      "energy": -7.882386993638933
+    },
+    {
+      "bond_length": 1.7,
+      "energy": -7.879433516564259
+    },
+    {
+      "bond_length": 1.85,
+      "energy": -7.871519789530684
+    },
+    {
+      "bond_length": 2.0,
+      "energy": -7.861087772481504
+    },
+    {
+      "bond_length": 2.2,
+      "energy": -7.845683623197173
+    },
+    {
+      "bond_length": 2.4,
+      "energy": -7.830631624424102
+    },
+    {
+      "bond_length": 2.6,
+      "energy": -7.81739992744943
+    }
+  ]
+}

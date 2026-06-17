@@ -1,0 +1,100 @@
+{
+  "run_id": "h2_ensemble_06_329a88",
+  "molecule": "H2",
+  "geometry": "H 0 0 0; H 0 0 0.735",
+  "bond_length": 0.735,
+  "basis": "sto-3g",
+  "mapper": "jordan_wigner",
+  "two_qubit_reduction": false,
+  "ansatz_params": {
+    "init": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "final": [
+      1.790922345500274e-07,
+      5.9222571332345625e-08,
+      -0.11176250374294495
+    ]
+  },
+  "backend": "ionq_sim",
+  "shots": 5000,
+  "optimizer_history": [
+    {
+      "iteration": 1,
+      "energy": -1.8369679912029726,
+      "parameters": [
+        0.0
+      ]
+    },
+    {
+      "iteration": 2,
+      "energy": -1.8369679912029713,
+      "parameters": [
+        1.4901161193847656e-08
+      ]
+    },
+    {
+      "iteration": 3,
+      "energy": -1.8369679912029726,
+      "parameters": [
+        0.0
+      ]
+    },
+    {
+      "iteration": 4,
+      "energy": -1.836967985810801,
+      "parameters": [
+        0.0
+      ]
+    },
+    {
+      "iteration": 5,
+      "energy": -1.7572865487401639,
+      "parameters": [
+        -8.940696716308594e-08
+      ]
+    },
+    {
+      "iteration": 6,
+      "energy": -1.8572741956073218,
+      "parameters": [
+        -2.7791803988449414e-08
+      ]
+    },
+    {
+      "iteration": 7,
+      "energy": -1.8572741956073249,
+      "parameters": [
+        -1.2890642794601758e-08
+      ]
+    },
+    {
+      "iteration": 8,
+      "energy": -1.8572741956073227,
+      "parameters": [
+        -2.7791803988449414e-08
+      ]
+    },
+    {
+      "iteration": 9,
+      "energy": -1.8572741956421093,
+      "parameters": [
+        -2.7791803988449414e-08
+      ]
+    },
+    {
+      "iteration": 10,
+      "energy": -1.857275030143663,
+      "parameters": [
+        1.790922345500274e-07
+      ]
+    }
+  ],
+  "energy": -1.1379661770168126,
+  "electronic_energy": -1.857275030143663,
+  "nuclear_repulsion_energy": 0.7199689944489797,
+  "cost_credits": null,
+  "timestamp": "2026-06-17T02:44:24.828659+00:00"
+}
