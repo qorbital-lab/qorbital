@@ -26,8 +26,8 @@ export function createEnsembleTrajectories(members, options = {}) {
       member.steps,
       member.dt,
       {
-        lineOpacity: options.lineOpacity ?? 0.09,
-        opacity: options.opacity ?? 0.4,
+        lineOpacity: options.lineOpacity ?? 0.14,
+        opacity: options.opacity ?? 0.55,
       },
     );
     if (typeof memberGroup.userData.update === "function") {

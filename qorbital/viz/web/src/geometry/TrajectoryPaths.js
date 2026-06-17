@@ -24,7 +24,7 @@ const TRAIL_LENGTH = 16;
  */
 export function createTrajectoryPaths(values, particles, steps, dt, options = {}) {
   const group = new THREE.Group();
-  const lineOpacity = options.lineOpacity ?? 0.32;
+  const lineOpacity = options.lineOpacity ?? 0.52;
   const headOpacity = options.opacity ?? 0.95;
 
   const speeds = [];
@@ -74,7 +74,7 @@ export function createTrajectoryPaths(values, particles, steps, dt, options = {}
       vertexColors: true,
       transparent: true,
       opacity: lineOpacity,
-      linewidth: 1.6,
+      linewidth: 2.2,
       depthWrite: false,
       dashed: false,
     });

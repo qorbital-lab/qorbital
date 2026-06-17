@@ -84,14 +84,25 @@ export class QorbitalApp {
 
     this.sceneManager.addTicker((elapsed, delta) => this._onTick(elapsed, delta));
     this.sceneManager.onCameraChange = () => this._writeUrl();
+    this._onLayoutResize = () => this._syncToolbarClearance();
+    window.addEventListener("resize", this._onLayoutResize);
 
     const entry = this._resolveInitialMolecule();
     this.selectMolecule(entry).then(() => {
-      // Auto-start a slow guided orbit unless the link pinned a camera.
-      if (!this._deepLink.camera) {
-        this._setTour(true);
-      }
+      this._syncToolbarClearance();
     });
+  }
+
+  /** Keep footer HUD above the bottom toolbar as it wraps. */
+  _syncToolbarClearance() {
+    const toolbar = document.getElementById("hud-toolbar");
+    if (!toolbar) return;
+    const rect = toolbar.getBoundingClientRect();
+    const clearance = Math.ceil(rect.height) + 20;
+    document.documentElement.style.setProperty(
+      "--toolbar-offset",
+      `${clearance}px`,
+    );
   }
 
   /**
@@ -656,24 +667,18 @@ export class QorbitalApp {
       ? /** @type {Record<string, string>} */ (bundle.provenance)
       : null;
     const runId = provenance?.run_id ?? "—";
-    const densitySource =
-      density.kind === "grid" && this._gridValues
-        ? "DensityGrid sidecar"
-        : "analytic σ-bond ρ(r)";
 
     const bondDrift = Math.abs(previewBond - equilibriumBond) > 0.01;
     const pesNote = bondDrift
       ? ` ρ(r) from equilibrium VQE bundle at R₀=${equilibriumBond.toFixed(2)} Å; energy interpolated from PES.`
       : "";
 
-    const ensembleNote =
-      this.state.showEnsemble && this._ensembleCount > 0
-        ? ` Overlaying ${this._ensembleCount} IonQ VQE runs — the shimmer is hardware noise.`
-        : "";
-
     this.elements.hudContext.textContent =
-      `${this.state.particleCount.toLocaleString()} Monte Carlo samples from ${densitySource} ` +
-      `(run ${runId}). C/S/T/E toggle cloud, isosurface, trajectories, ensemble.${ensembleNote}${pesNote}`;
+      `${this.state.particleCount.toLocaleString()} ρ samples · run ${runId}` +
+      (this.state.showEnsemble && this._ensembleCount > 0
+        ? ` · ${this._ensembleCount} IonQ runs overlaid`
+        : "") +
+      pesNote;
 
     this._updateBackendBadge(backend);
     this._updateLegend();
@@ -804,6 +809,7 @@ export class QorbitalApp {
 
     this.sceneManager.setContent(this._contentGroup);
     this.updateHud(bundle);
+    this._syncToolbarClearance();
   }
 
   /**
@@ -833,6 +839,7 @@ export class QorbitalApp {
   }
 
   dispose() {
+    window.removeEventListener("resize", this._onLayoutResize);
     disposeObject(this._contentGroup);
     this.sceneManager.dispose();
   }
