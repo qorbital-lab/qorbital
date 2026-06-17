@@ -10,6 +10,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 WEB_ROOT = REPO_ROOT / "qorbital" / "viz" / "web"
 BUNDLES_ROOT = REPO_ROOT / "data" / "bundles"
+PES_ROOT = REPO_ROOT / "data" / "pes"
 DEFAULT_OUT = REPO_ROOT / "_site"
 
 
@@ -36,6 +37,12 @@ def prepare_site(out_dir: Path) -> Path:
             continue
         target = out_dir / "bundles" / molecule_dir.name
         _copy_tree(molecule_dir, target)
+
+    if PES_ROOT.exists():
+        pes_target = out_dir / "pes"
+        pes_target.mkdir(parents=True, exist_ok=True)
+        for pes_file in sorted(PES_ROOT.glob("*.json")):
+            shutil.copy2(pes_file, pes_target / pes_file.name)
 
     (out_dir / ".nojekyll").touch()
     return out_dir

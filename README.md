@@ -59,19 +59,21 @@ python3 scripts/prepare_pages_site.py
 python3 -m http.server 8000 --directory _site
 ```
 
-Or serve the dev viewer directly:
+Or serve the dev viewer directly (recommended — includes bundles + PES):
 
 ```bash
 python3 scripts/serve_viewer.py
 ```
 
-Or manually:
+For the Pages layout:
 
 ```bash
-python3 -m http.server 8000 --directory qorbital/viz/web
+python3 scripts/serve_viewer.py --site
 ```
 
-Open [http://localhost:8000](http://localhost:8000) — H₂ VQE density cloud with orbit/zoom/pan controls. Press **H** to toggle the control panel. Swap molecules via query param, e.g. `?bundle=bundles/heh%2B/heh%2B_bundle.json`. Visualization data follows [ADR-004](docs/decisions/ADR-004-data-schema.md).
+Note: `python3 -m http.server --directory qorbital/viz/web` alone will 404 on bundles/PES — use `serve_viewer.py` or `_site` instead.
+
+Open [http://localhost:8000](http://localhost:8000) — H₂ VQE density cloud with Bohmian trajectories, molecule picker (H₂, HeH⁺, LiH), and bond-length slider. Press **H** to toggle controls; **C** / **S** / **T** toggle cloud, isosurface, and trajectories. Deep-link molecules with `?molecule=lih` or legacy `?bundle=bundles/heh%2B/heh%2B_bundle.json`. The bond slider updates energy from cached PES curves; ρ(r) stays at the equilibrium VQE bundle until per-bond bundles exist. Visualization data follows [ADR-004](docs/decisions/ADR-004-data-schema.md).
 
 Push to `integration/3day` (or `main` after merge) auto-deploys via [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
 

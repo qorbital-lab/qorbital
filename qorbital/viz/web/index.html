@@ -55,7 +55,7 @@
 
         <footer class="hud hud-br">
           <p id="hud-shortcuts">
-            H: controls · C: cloud · S: surface · drag: orbit · scroll: zoom
+            H: controls · C: cloud · S: surface · T: trajectories · drag: orbit · scroll: zoom
           </p>
         </footer>
 
@@ -91,13 +91,29 @@
               <input id="toggle-atoms" type="checkbox" checked />
               Nuclear centers
             </label>
-            <p class="hint">Trajectories — issue #25</p>
+            <label class="layer-toggle">
+              <input id="toggle-trajectories" type="checkbox" checked />
+              Bohmian trajectories
+            </label>
           </section>
 
           <section class="panel">
             <h3>Molecule</h3>
-            <p id="molecule-label">—</p>
-            <p class="hint">Molecule picker — issue #30</p>
+            <label for="molecule-select">Species</label>
+            <select id="molecule-select" aria-label="Molecule picker"></select>
+            <p id="molecule-label" class="molecule-label">—</p>
+            <label for="bond-slider">Bond length</label>
+            <input
+              id="bond-slider"
+              type="range"
+              min="0.55"
+              max="1.5"
+              step="0.01"
+              value="0.735"
+            />
+            <p class="readout" id="bond-readout">0.74 Å</p>
+            <canvas id="pes-chart" aria-label="Potential energy surface"></canvas>
+            <p class="hint">Density at equilibrium bundle; energy from cached PES</p>
           </section>
         </aside>
       </main>

@@ -1,17 +1,17 @@
 {
   "schema_version": "0.1.0",
   "molecule": {
-    "id": "H2",
-    "label": "H\u2082",
-    "bond_length_angstrom": 0.735,
+    "id": "LiH",
+    "label": "LiH",
+    "bond_length_angstrom": 1.596,
     "basis": "sto-3g",
     "atoms": [
       {
-        "symbol": "H",
+        "symbol": "Li",
         "position": [
           0.0,
           0.0,
-          -0.3675
+          0.0
         ]
       },
       {
@@ -19,7 +19,7 @@
         "position": [
           0.0,
           0.0,
-          0.3675
+          1.596
         ]
       }
     ]
@@ -35,14 +35,14 @@
     "spacing": [
       0.20689655172413793,
       0.20689655172413793,
-      0.23224138113389547
+      0.2619310384424686
     ],
     "shape": [
       30,
       30,
       30
     ],
-    "values": "h2_density.bin",
+    "values": "lih_density.bin",
     "value_encoding": "float32-le",
     "units": "electron_density_au",
     "default_isovalue": 0.02
@@ -51,21 +51,21 @@
     "provider": "qorbital",
     "name": "aer"
   },
-  "energy_hartree": -1.1373060356946834,
+  "energy_hartree": -7.882376146351309,
   "reference_energies": {
-    "hf": -1.1169989967540044
+    "hf": -7.861992688740784
   },
   "trajectories": {
     "particles": 20,
     "steps": 100,
     "dt": 0.1,
-    "paths": "h2_trajectories.bin",
+    "paths": "lih_trajectories.bin",
     "path_layout": "particle-major",
     "color_by": "speed"
   },
   "provenance": {
-    "run_id": "h2_20260617_154752",
-    "created_at": "2026-06-17T15:47:52Z",
+    "run_id": "lih_20260617_160444",
+    "created_at": "2026-06-17T16:04:44Z",
     "git_sha": ""
   }
 }

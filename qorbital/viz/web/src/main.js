@@ -35,11 +35,16 @@ try {
     metaIsovalue: requireElement("meta-isovalue"),
     controlsPanel: requireElement("controls-panel"),
     moleculeLabel: requireElement("molecule-label"),
+    moleculeSelect: requireElement("molecule-select"),
+    bondSlider: requireElement("bond-slider"),
+    bondReadout: requireElement("bond-readout"),
+    pesChart: requireElement("pes-chart"),
     isovalueSlider: requireElement("isovalue-slider"),
     isovalueReadout: requireElement("isovalue-readout"),
     toggleCloud: requireElement("toggle-cloud"),
     toggleSurface: requireElement("toggle-surface"),
     toggleAtoms: requireElement("toggle-atoms"),
+    toggleTrajectories: requireElement("toggle-trajectories"),
   });
 
   window.qorbitalApp = app;

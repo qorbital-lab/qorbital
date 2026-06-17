@@ -265,6 +265,30 @@ body {
   accent-color: #888;
 }
 
+.panel select {
+  width: 100%;
+  margin-bottom: 0.5rem;
+  padding: 0.35rem 0.45rem;
+  background: #111;
+  border: 1px solid #333;
+  color: #ddd;
+  font: inherit;
+}
+
+.panel .molecule-label {
+  margin: 0.15rem 0 0.65rem;
+  color: #ccc;
+  font-size: 13px;
+}
+
+#pes-chart {
+  display: block;
+  width: 100%;
+  margin: 0.5rem 0 0.35rem;
+  border: 1px solid #222;
+  border-radius: 2px;
+}
+
 .panel .readout {
   color: #e0e0e0;
 }

@@ -6,6 +6,7 @@ export const initialState = {
   showCloud: true,
   showSurface: false,
   showAtoms: true,
-  showTrajectories: false,
+  showTrajectories: true,
   particleCount: 10000,
+  previewBond: null,
 };

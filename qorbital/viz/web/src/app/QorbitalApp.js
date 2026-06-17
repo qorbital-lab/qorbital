@@ -3,11 +3,23 @@ import { loadBundle } from "../loaders/BundleLoader.js";
 import { createAtomGlyphs } from "../geometry/AtomGlyphs.js";
 import { createIsosurfaceMesh } from "../geometry/IsosurfaceMesh.js";
 import { createDensityCloud } from "../geometry/DensityCloud.js";
+import { createTrajectoryPaths } from "../geometry/TrajectoryPaths.js";
+import { scaleMoleculeBond } from "../geometry/scaleMoleculeBond.js";
 import { createDensityField } from "../density/densityField.js";
 import { loadGridValues } from "../density/loadGridValues.js";
 import { sampleDensityPoints } from "../density/samplePoints.js";
+import { loadTrajectoryValues } from "../trajectories/loadTrajectoryValues.js";
+import {
+  defaultMolecule,
+  findMoleculeByBundleUrl,
+  findMoleculeById,
+  MOLECULE_CATALOG,
+} from "../config/moleculeCatalog.js";
+import { loadPes } from "../pes/loadPes.js";
+import { interpolateEnergy } from "../pes/interpolateEnergy.js";
 import { SceneManager } from "../scene/SceneManager.js";
 import { drawMoleculeMinimap } from "../ui/MiniMap.js";
+import { drawPesChart } from "../ui/PesChart.js";
 import { disposeObject } from "../util/dispose.js";
 import { initialState } from "./state.js";
 
@@ -24,65 +36,216 @@ export class QorbitalApp {
     this._contentGroup = new THREE.Group();
     this._currentBundle = null;
     this._gridValues = null;
+    this._trajectoryValues = null;
+    /** @type {import("../config/moleculeCatalog.js").MoleculeEntry | null} */
+    this._currentMolecule = null;
+    /** @type {Array<{ bond_length: number, energy: number }> | null} */
+    this._pesPoints = null;
 
-    /** @type {HTMLInputElement} */ (elements.isovalueSlider).disabled = true;
-    elements.isovalueSlider.addEventListener("input", () => {
+    this._populateMoleculeSelect();
+    this._wireLayerToggles();
+    this._wireMoleculeControls();
+    this._wireKeyboardShortcuts();
+
+    const entry = this._resolveInitialMolecule();
+    this.selectMolecule(entry);
+  }
+
+  _populateMoleculeSelect() {
+    const select = /** @type {HTMLSelectElement} */ (
+      this.elements.moleculeSelect
+    );
+    select.replaceChildren();
+    for (const entry of MOLECULE_CATALOG) {
+      const option = document.createElement("option");
+      option.value = entry.id;
+      option.textContent = entry.label;
+      select.appendChild(option);
+    }
+  }
+
+  _wireLayerToggles() {
+    /** @type {HTMLInputElement} */ (this.elements.isovalueSlider).disabled = true;
+    this.elements.isovalueSlider.addEventListener("input", () => {
       const value = Number(
-        /** @type {HTMLInputElement} */ (elements.isovalueSlider).value,
+        /** @type {HTMLInputElement} */ (this.elements.isovalueSlider).value,
       );
-      elements.isovalueReadout.textContent = value.toFixed(3);
-      elements.metaIsovalue.textContent = value.toFixed(3);
+      this.elements.isovalueReadout.textContent = value.toFixed(3);
+      this.elements.metaIsovalue.textContent = value.toFixed(3);
     });
 
-    /** @type {HTMLInputElement} */ (elements.toggleCloud).checked =
+    /** @type {HTMLInputElement} */ (this.elements.toggleCloud).checked =
       this.state.showCloud;
-    /** @type {HTMLInputElement} */ (elements.toggleSurface).checked =
+    /** @type {HTMLInputElement} */ (this.elements.toggleSurface).checked =
       this.state.showSurface;
-    /** @type {HTMLInputElement} */ (elements.toggleAtoms).checked =
+    /** @type {HTMLInputElement} */ (this.elements.toggleAtoms).checked =
       this.state.showAtoms;
+    /** @type {HTMLInputElement} */ (this.elements.toggleTrajectories).checked =
+      this.state.showTrajectories;
 
-    elements.toggleCloud.addEventListener("change", () => {
+    this.elements.toggleCloud.addEventListener("change", () => {
       this.state.showCloud =
-        /** @type {HTMLInputElement} */ (elements.toggleCloud).checked;
+        /** @type {HTMLInputElement} */ (this.elements.toggleCloud).checked;
       if (this._currentBundle) {
         this.renderBundle(this._currentBundle);
       }
     });
-    elements.toggleSurface.addEventListener("change", () => {
+    this.elements.toggleSurface.addEventListener("change", () => {
       this.state.showSurface =
-        /** @type {HTMLInputElement} */ (elements.toggleSurface).checked;
+        /** @type {HTMLInputElement} */ (this.elements.toggleSurface).checked;
       if (this._currentBundle) {
         this.renderBundle(this._currentBundle);
       }
     });
-    elements.toggleAtoms.addEventListener("change", () => {
+    this.elements.toggleAtoms.addEventListener("change", () => {
       this.state.showAtoms =
-        /** @type {HTMLInputElement} */ (elements.toggleAtoms).checked;
+        /** @type {HTMLInputElement} */ (this.elements.toggleAtoms).checked;
       if (this._currentBundle) {
         this.renderBundle(this._currentBundle);
+      }
+    });
+    this.elements.toggleTrajectories.addEventListener("change", () => {
+      this.state.showTrajectories =
+        /** @type {HTMLInputElement} */ (this.elements.toggleTrajectories).checked;
+      if (this._currentBundle) {
+        this.renderBundle(this._currentBundle);
+      }
+    });
+  }
+
+  _wireMoleculeControls() {
+    this.elements.moleculeSelect.addEventListener("change", () => {
+      const id = /** @type {HTMLSelectElement} */ (
+        this.elements.moleculeSelect
+      ).value;
+      const entry = findMoleculeById(id);
+      if (entry) {
+        this.selectMolecule(entry);
       }
     });
 
+    this.elements.bondSlider.addEventListener("input", () => {
+      const bond = Number(
+        /** @type {HTMLInputElement} */ (this.elements.bondSlider).value,
+      );
+      this.onBondChange(bond);
+    });
+  }
+
+  _wireKeyboardShortcuts() {
     window.addEventListener("keydown", (event) => {
       const key = event.key.toLowerCase();
       if (key === "h") {
         this.toggleControls();
       } else if (key === "c") {
-        this._setLayerToggle("showCloud", elements.toggleCloud);
+        this._setLayerToggle("showCloud", this.elements.toggleCloud);
       } else if (key === "s") {
-        this._setLayerToggle("showSurface", elements.toggleSurface);
+        this._setLayerToggle("showSurface", this.elements.toggleSurface);
+      } else if (key === "t") {
+        this._setLayerToggle("showTrajectories", this.elements.toggleTrajectories);
       }
     });
-
-    const params = new URLSearchParams(window.location.search);
-    const bundleUrl = params.get("bundle") ?? initialState.bundleUrl;
-    this.state.bundleUrl = bundleUrl;
-
-    this.load(bundleUrl);
   }
 
   /**
-   * @param {"showCloud" | "showSurface"} stateKey
+   * @returns {import("../config/moleculeCatalog.js").MoleculeEntry}
+   */
+  _resolveInitialMolecule() {
+    const params = new URLSearchParams(window.location.search);
+    const moleculeParam = params.get("molecule");
+    if (moleculeParam) {
+      const entry = findMoleculeById(moleculeParam);
+      if (entry) {
+        return entry;
+      }
+    }
+
+    const bundleParam = params.get("bundle");
+    if (bundleParam) {
+      const entry = findMoleculeByBundleUrl(bundleParam);
+      if (entry) {
+        return entry;
+      }
+    }
+
+    return defaultMolecule();
+  }
+
+  /**
+   * @param {import("../config/moleculeCatalog.js").MoleculeEntry} entry
+   */
+  async selectMolecule(entry) {
+    this._currentMolecule = entry;
+    this.state.bundleUrl = entry.bundleUrl;
+    this.state.previewBond = entry.defaultBond;
+
+    /** @type {HTMLSelectElement} */ (this.elements.moleculeSelect).value =
+      entry.id;
+
+    const slider = /** @type {HTMLInputElement} */ (this.elements.bondSlider);
+    slider.min = String(entry.bondMin);
+    slider.max = String(entry.bondMax);
+    slider.step = "0.01";
+    slider.value = String(entry.defaultBond);
+    this.elements.bondReadout.textContent = `${entry.defaultBond.toFixed(2)} Å`;
+
+    this._syncUrl(entry.id);
+
+    try {
+      this._pesPoints = (await loadPes(entry.pesUrl)).points;
+      drawPesChart(
+        /** @type {HTMLCanvasElement} */ (this.elements.pesChart),
+        this._pesPoints,
+        entry.defaultBond,
+      );
+    } catch (err) {
+      console.warn("PES load failed:", err);
+      this._pesPoints = null;
+    }
+
+    await this.load(entry.bundleUrl);
+    this.onBondChange(entry.defaultBond);
+  }
+
+  /**
+   * @param {string} moleculeId
+   */
+  _syncUrl(moleculeId) {
+    const params = new URLSearchParams(window.location.search);
+    params.set("molecule", moleculeId.toLowerCase());
+    params.delete("bundle");
+    const query = params.toString();
+    const next = query
+      ? `${window.location.pathname}?${query}`
+      : window.location.pathname;
+    window.history.replaceState(null, "", next);
+  }
+
+  /**
+   * @param {number} bond
+   */
+  onBondChange(bond) {
+    this.state.previewBond = bond;
+    this.elements.bondReadout.textContent = `${bond.toFixed(2)} Å`;
+    this.elements.metaBond.textContent = `${bond.toFixed(2)} Å`;
+
+    if (this._pesPoints) {
+      const energy = interpolateEnergy(this._pesPoints, bond);
+      this.elements.metaEnergy.textContent = this._fmtEnergy(energy);
+      drawPesChart(
+        /** @type {HTMLCanvasElement} */ (this.elements.pesChart),
+        this._pesPoints,
+        bond,
+      );
+    }
+
+    if (this._currentBundle) {
+      this.renderBundle(this._currentBundle);
+    }
+  }
+
+  /**
+   * @param {"showCloud" | "showSurface" | "showTrajectories"} stateKey
    * @param {HTMLInputElement} input
    */
   _setLayerToggle(stateKey, input) {
@@ -134,7 +297,8 @@ export class QorbitalApp {
 
     const label = String(mol.label ?? mol.id);
     const basis = String(mol.basis ?? "—");
-    const bond = Number(mol.bond_length_angstrom ?? 0);
+    const equilibriumBond = Number(mol.bond_length_angstrom ?? 0);
+    const previewBond = this.state.previewBond ?? equilibriumBond;
     const iso = Number(density.isovalue ?? density.default_isovalue ?? 0.02);
     const method = String(bundle.method ?? "unknown");
     const backendLabel = backend ? `${backend.provider}/${backend.name}` : "—";
@@ -142,15 +306,22 @@ export class QorbitalApp {
     const modeParts = [];
     if (this.state.showCloud) modeParts.push("ρ(r) cloud");
     if (this.state.showSurface) modeParts.push("isosurface");
+    if (this.state.showTrajectories && this._trajectoryValues) {
+      modeParts.push("trajectories");
+    }
     const modeLabel = modeParts.length > 0 ? modeParts.join(" + ") : "layers off";
 
     this.elements.hudPhase.textContent = `Step 1/1 · ${method} · ${modeLabel}`;
     this.elements.metaMolecule.textContent = `${label} (${basis})`;
-    this.elements.metaBond.textContent = `${bond.toFixed(2)} Å`;
+    this.elements.metaBond.textContent = `${previewBond.toFixed(2)} Å`;
     this.elements.metaBasis.textContent = basis;
     this.elements.metaMethod.textContent = method;
     this.elements.metaBackend.textContent = backendLabel;
-    this.elements.metaEnergy.textContent = this._fmtEnergy(bundle.energy_hartree);
+
+    if (!this._pesPoints) {
+      this.elements.metaEnergy.textContent = this._fmtEnergy(bundle.energy_hartree);
+    }
+
     this.elements.metaHf.textContent = refs?.hf != null ? this._fmtEnergy(refs.hf) : "—";
     this.elements.metaFci.textContent = refs?.fci != null ? this._fmtEnergy(refs.fci) : "—";
     this.elements.metaIsovalue.textContent = iso.toFixed(3);
@@ -160,13 +331,14 @@ export class QorbitalApp {
       String(iso);
     this.elements.isovalueReadout.textContent = iso.toFixed(3);
 
+    const displayMolecule = scaleMoleculeBond(mol, previewBond);
     const atoms = /** @type {Array<{symbol: string, position: number[]}>} */ (
-      mol.atoms
+      displayMolecule.atoms
     );
     drawMoleculeMinimap(
       /** @type {HTMLCanvasElement} */ (this.elements.minimap),
       atoms,
-      { label, bondLength: bond, orbital: "1σ_g" },
+      { label, bondLength: previewBond, orbital: "1σ_g" },
     );
 
     const provenance = bundle.provenance
@@ -177,9 +349,15 @@ export class QorbitalApp {
       density.kind === "grid" && this._gridValues
         ? "DensityGrid sidecar"
         : "analytic σ-bond ρ(r)";
+
+    const bondDrift = Math.abs(previewBond - equilibriumBond) > 0.01;
+    const pesNote = bondDrift
+      ? ` ρ(r) from equilibrium VQE bundle at R₀=${equilibriumBond.toFixed(2)} Å; energy interpolated from PES.`
+      : "";
+
     this.elements.hudContext.textContent =
       `${this.state.particleCount.toLocaleString()} Monte Carlo samples from ${densitySource} ` +
-      `(run ${runId}). C/S toggle cloud and isosurface.`;
+      `(run ${runId}). C/S/T toggle cloud, isosurface, and trajectories.${pesNote}`;
   }
 
   /**
@@ -190,6 +368,10 @@ export class QorbitalApp {
     this._contentGroup = new THREE.Group();
 
     const density = /** @type {Record<string, unknown>} */ (bundle.density);
+    const mol = /** @type {Record<string, unknown>} */ (bundle.molecule);
+    const equilibriumBond = Number(mol.bond_length_angstrom ?? 0);
+    const previewBond = this.state.previewBond ?? equilibriumBond;
+    const displayMolecule = scaleMoleculeBond(mol, previewBond);
 
     if (this.state.showCloud) {
       const field = createDensityField(bundle, this._gridValues);
@@ -207,8 +389,18 @@ export class QorbitalApp {
     }
 
     if (this.state.showAtoms) {
+      this._contentGroup.add(createAtomGlyphs(displayMolecule));
+    }
+
+    if (this.state.showTrajectories && this._trajectoryValues && bundle.trajectories) {
+      const trajectories = /** @type {Record<string, unknown>} */ (
+        bundle.trajectories
+      );
+      const particles = Number(trajectories.particles);
+      const steps = Number(trajectories.steps);
+      const dt = Number(trajectories.dt ?? 0.1);
       this._contentGroup.add(
-        createAtomGlyphs(/** @type {Record<string, unknown>} */ (bundle.molecule)),
+        createTrajectoryPaths(this._trajectoryValues, particles, steps, dt),
       );
     }
 
@@ -227,6 +419,10 @@ export class QorbitalApp {
       this._gridValues = await loadGridValues(
         url,
         /** @type {Record<string, unknown>} */ (bundle.density),
+      );
+      this._trajectoryValues = await loadTrajectoryValues(
+        url,
+        /** @type {Record<string, unknown> | undefined} */ (bundle.trajectories),
       );
       this.renderBundle(bundle);
       this.setOverlay("");

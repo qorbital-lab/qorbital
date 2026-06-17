@@ -1,4 +1,4 @@
-"""Generate visualization bundles for H2 and HeH+ with Bohmian trajectories."""
+"""Generate visualization bundles for H2, HeH+, and LiH with Bohmian trajectories."""
 
 from __future__ import annotations
 
@@ -12,6 +12,12 @@ from qorbital.chemistry.integrals import compute_integrals
 from qorbital.chemistry.molecules import DEFAULT_BOND_LENGTHS, get_molecule_params
 from qorbital.viz.trajectories import build_molecule_bundle
 from qorbital.vqe.solver import run_vqe
+
+MOLECULE_LABELS: dict[str, str] = {
+    "H2": "H₂",
+    "HeH+": "HeH⁺",
+    "LiH": "LiH",
+}
 
 
 def _generate_trajectories(
@@ -43,13 +49,20 @@ def generate_bundle(molecule: str) -> None:
     params = get_molecule_params(molecule)
     bond = DEFAULT_BOND_LENGTHS[molecule]
 
+    mapping = params.mapping
+    two_qubit_reduction = params.two_qubit_reduction
+    if molecule == "LiH":
+        # compute_density only supports JW-mapped statevectors today.
+        mapping = "jordan_wigner"
+        two_qubit_reduction = False
+
     vqe_result = run_vqe(
         molecule,
         bond_length=bond,
         charge=params.charge,
         spin=params.spin,
-        mapping=params.mapping,
-        two_qubit_reduction=params.two_qubit_reduction,
+        mapping=mapping,
+        two_qubit_reduction=two_qubit_reduction,
     )
     integrals = compute_integrals(
         molecule,
@@ -67,7 +80,7 @@ def generate_bundle(molecule: str) -> None:
 
     build_molecule_bundle(
         molecule,
-        label=molecule.replace("+", "⁺"),
+        label=MOLECULE_LABELS.get(molecule, molecule),
         bond_length=bond,
         density=density,
         trajectories=trajectories,
@@ -78,7 +91,18 @@ def generate_bundle(molecule: str) -> None:
 
 
 def main() -> None:
-    for mol in ("H2", "HeH+"):
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Generate visualization bundles")
+    parser.add_argument(
+        "--molecule",
+        nargs="+",
+        choices=["H2", "HeH+", "LiH"],
+        default=["H2", "HeH+", "LiH"],
+        help="Molecules to generate (default: all)",
+    )
+    args = parser.parse_args()
+    for mol in args.molecule:
         generate_bundle(mol)
 
 
