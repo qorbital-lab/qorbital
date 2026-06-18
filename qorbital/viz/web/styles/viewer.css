@@ -65,29 +65,32 @@ body {
 .brand-lockup {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   margin-bottom: 2px;
 }
 
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.brand-mark {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
 .brand-logo {
-  position: relative;
   margin: 0;
-  padding-left: 10px;
   font-size: 16px;
   font-weight: 600;
   letter-spacing: 0.04em;
   line-height: 1;
-}
-
-.brand-logo::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 1px;
-  width: 6px;
-  height: 6px;
-  border-left: 1px solid #555;
-  border-top: 1px solid #555;
 }
 
 .brand-q {
@@ -101,7 +104,7 @@ body {
 
 .brand-tag {
   margin: 0;
-  padding-left: 10px;
+  padding-left: 39px;
   font-size: 8px;
   font-weight: 500;
   letter-spacing: 0.16em;

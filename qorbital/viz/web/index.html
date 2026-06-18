@@ -4,6 +4,13 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>qOrbital</title>
+    <meta
+      name="description"
+      content="Interactive quantum chemistry orbital visualizer — VQE electron density and Bohmian trajectories in 3D."
+    />
+    <meta name="theme-color" content="#000000" />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
     <link rel="stylesheet" href="styles/viewer.css" />
     <script type="importmap">
       {
@@ -23,9 +30,19 @@
 
         <header class="hud hud-tl">
           <div class="brand-lockup">
-            <p class="brand-logo" aria-label="qOrbital">
-              <span class="brand-q">q</span><span class="brand-name">Orbital</span>
-            </p>
+            <div class="brand-row">
+              <img
+                class="brand-mark"
+                src="assets/logo-mark.svg"
+                width="30"
+                height="30"
+                alt=""
+                decoding="async"
+              />
+              <p class="brand-logo" aria-label="qOrbital">
+                <span class="brand-q">q</span><span class="brand-name">Orbital</span>
+              </p>
+            </div>
             <p class="brand-tag">electron density · vqe viz</p>
           </div>
           <p id="hud-backend-badge" class="backend-badge">—</p>
