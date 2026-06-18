@@ -81,6 +81,7 @@ Dependencies are noted per segment. Within a phase, segments can mostly run in p
 **Acceptance:** 20 particles × 100 steps over 2 periods runs < 5 s; positions are **periodic** (return near start after one period); norm/probability conserved.
 
 ### [B6] Superposition tests (closed-form oracle)
+**Status:** DONE
 **Scope:** `tests/test_bohmian.py` additions: plane-wave velocity unit test; **two-state closed-form oracle** `v = c₀c₁ sin(ωt)(φ₁∇φ₀−φ₀∇φ₁)/|Ψ|²`; norm conservation; real H₂ eigenstate pair → trajectories **move** and are **periodic** (electron sloshing between the two H nuclei). HeH⁺ → visible **asymmetry toward He**.
 **Acceptance:** all new tests pass; HeH⁺ confirmed in registry (`qorbital/chemistry/molecules.py`) with charge=+1.
 

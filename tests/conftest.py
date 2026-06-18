@@ -12,3 +12,6 @@ def pytest_configure(config: pytest.Config) -> None:
         "markers", "integrator: B5 time-dependent trajectory integration tests"
     )
     config.addinivalue_line("markers", "periodic: B5 periodicity checks")
+    config.addinivalue_line(
+        "markers", "oracle: B6 closed-form physics and behavioural gates"
+    )
