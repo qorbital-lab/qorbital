@@ -12,6 +12,7 @@ WEB_ROOT = REPO_ROOT / "qorbital" / "viz" / "web"
 BUNDLES_ROOT = REPO_ROOT / "data" / "bundles"
 PES_ROOT = REPO_ROOT / "data" / "pes"
 DEFAULT_OUT = REPO_ROOT / "_site"
+CUSTOM_DOMAIN = "qorbital.xyz"
 
 
 def _copy_tree(src: Path, dst: Path) -> None:
@@ -45,6 +46,7 @@ def prepare_site(out_dir: Path) -> Path:
             shutil.copy2(pes_file, pes_target / pes_file.name)
 
     (out_dir / ".nojekyll").touch()
+    (out_dir / "CNAME").write_text(f"{CUSTOM_DOMAIN}\n", encoding="utf-8")
     return out_dir
 
 
