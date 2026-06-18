@@ -56,9 +56,7 @@ def main() -> None:
 
     if args.site:
         if not SITE_ROOT.is_dir():
-            msg = (
-                f"{SITE_ROOT} not found. Run: python scripts/prepare_pages_site.py"
-            )
+            msg = f"{SITE_ROOT} not found. Run: python scripts/prepare_pages_site.py"
             raise SystemExit(msg)
         serve_root = SITE_ROOT
         handler = functools.partial(

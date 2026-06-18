@@ -84,9 +84,7 @@ def add_azimuthal_phase(
     vanish identically.
     """
     nx, ny, nz = psi.shape
-    axes = [
-        origin[i] + np.arange(n) * spacing[i] for i, n in enumerate((nx, ny, nz))
-    ]
+    axes = [origin[i] + np.arange(n) * spacing[i] for i, n in enumerate((nx, ny, nz))]
     xv, yv, zv = np.meshgrid(*axes, indexing="ij")
     phi = np.arctan2(yv, xv)
     return psi * np.exp(1j * strength * phi)

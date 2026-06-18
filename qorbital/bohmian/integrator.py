@@ -39,19 +39,11 @@ def integrate_trajectories(
         Array of shape ``(n_particles, n_steps, 3)`` with positions in Angstrom.
     """
     nx, ny, nz = vx.shape
-    axes = [
-        origin[i] + np.arange(n) * spacing[i] for i, n in enumerate((nx, ny, nz))
-    ]
+    axes = [origin[i] + np.arange(n) * spacing[i] for i, n in enumerate((nx, ny, nz))]
 
-    interp_x = RegularGridInterpolator(
-        axes, vx, bounds_error=False, fill_value=0.0
-    )
-    interp_y = RegularGridInterpolator(
-        axes, vy, bounds_error=False, fill_value=0.0
-    )
-    interp_z = RegularGridInterpolator(
-        axes, vz, bounds_error=False, fill_value=0.0
-    )
+    interp_x = RegularGridInterpolator(axes, vx, bounds_error=False, fill_value=0.0)
+    interp_y = RegularGridInterpolator(axes, vy, bounds_error=False, fill_value=0.0)
+    interp_z = RegularGridInterpolator(axes, vz, bounds_error=False, fill_value=0.0)
 
     seeds = np.asarray(seeds, dtype=np.float64)
     n_particles = seeds.shape[0]

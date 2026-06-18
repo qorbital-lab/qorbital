@@ -51,9 +51,7 @@ def _generate_trajectories(
 ) -> np.ndarray:
     """Generate Bohmian trajectories with azimuthal phase injection."""
     wf = project_natural_orbital(density_grid, integrals, molecule)
-    psi_complex = add_azimuthal_phase(
-        wf.psi, wf.origin, wf.spacing, strength=0.5
-    )
+    psi_complex = add_azimuthal_phase(wf.psi, wf.origin, wf.spacing, strength=0.5)
     vx, vy, vz = velocity_field(psi_complex, wf.spacing)
 
     if bond is None:
@@ -212,15 +210,11 @@ def generate_ensemble(
         density = compute_density(
             statevector, integrals, grid_points=30, atom_string=molecule
         )
-        trajectories = _generate_trajectories(
-            density, integrals, molecule, bond=bond
-        )
+        trajectories = _generate_trajectories(density, integrals, molecule, bond=bond)
 
         index = len(members)
         sidecar = f"{molecule.lower()}_ens_{index:02d}.bin"
-        traj_set = trajectories_to_sidecar(
-            trajectories, output_dir, sidecar, dt=_DT
-        )
+        traj_set = trajectories_to_sidecar(trajectories, output_dir, sidecar, dt=_DT)
         members.append(
             {
                 "run_id": run.get("run_id", run_file.stem),

@@ -1,7 +1,6 @@
 """Tests for VQE backends, submission, PES, HF density, and data loader."""
 
 import json
-from pathlib import Path
 
 import numpy as np
 import pytest
@@ -33,9 +32,7 @@ class TestBackends:
     def test_h2_vqe_ionq_sim_backend(self):
         from qorbital.vqe.solver import run_vqe
 
-        result = run_vqe(
-            "H2", backend=Backend.IONQ_SIM, shots=1000, max_iterations=30
-        )
+        result = run_vqe("H2", backend=Backend.IONQ_SIM, shots=1000, max_iterations=30)
         assert result.total_energy < 0.0
 
 
@@ -63,7 +60,7 @@ class TestPES:
         lengths = [0.6, 0.735, 0.9]
         pes = compute_pes("H2", lengths, backend=Backend.AER, max_iterations=20)
         assert len(pes) == 3
-        path = save_pes("H2", pes, output_dir=tmp_path)
+        save_pes("H2", pes, output_dir=tmp_path)
         loaded = load_pes("H2", pes_dir=tmp_path)
         assert len(loaded) == 3
 

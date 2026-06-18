@@ -6,7 +6,7 @@ import pytest
 from qorbital.bohmian.projection import project_homo_orbital, project_natural_orbital
 from qorbital.chemistry.density import compute_density
 from qorbital.chemistry.integrals import compute_integrals
-from qorbital.chemistry.molecules import MOLECULE_PARAMS, get_molecule_params
+from qorbital.chemistry.molecules import get_molecule_params
 from qorbital.vqe.solver import run_vqe
 
 
@@ -25,9 +25,7 @@ class TestHeHPlus:
     @pytest.fixture(scope="class")
     def heh_density(self):
         params = get_molecule_params("HeH+")
-        integrals = compute_integrals(
-            "HeH+", charge=params.charge, spin=params.spin
-        )
+        integrals = compute_integrals("HeH+", charge=params.charge, spin=params.spin)
         qh_matrix = __import__(
             "qorbital.chemistry.hamiltonian", fromlist=["build_hamiltonian"]
         ).build_hamiltonian(
@@ -96,6 +94,8 @@ class TestLiH:
             integrals,
             grid_points=20,
             atom_string="LiH",
+            mapping=result.mapping,
+            two_qubit_reduction=result.two_qubit_reduction,
         )
         wf = project_natural_orbital(density, integrals, "LiH")
         assert wf.psi.shape == density.grid_shape
@@ -116,6 +116,8 @@ class TestLiH:
             integrals,
             grid_points=20,
             atom_string="LiH",
+            mapping=result.mapping,
+            two_qubit_reduction=result.two_qubit_reduction,
         )
         wf = project_homo_orbital(density, integrals, "LiH")
         assert np.all(np.isfinite(wf.psi))

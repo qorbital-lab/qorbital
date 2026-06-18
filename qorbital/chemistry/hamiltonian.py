@@ -62,15 +62,19 @@ def build_hamiltonian(
     return map_integrals_to_qubit_op(integrals, mapping, two_qubit_reduction)
 
 
-def map_integrals_to_qubit_op(
-    integrals: MolecularIntegrals,
-    mapping: QubitMapping | str = QubitMapping.JORDAN_WIGNER,
-    two_qubit_reduction: bool = False,
-) -> QubitHamiltonian:
-    """Map a pre-computed :class:`MolecularIntegrals` to a qubit Hamiltonian.
+def make_mapper(
+    mapping: QubitMapping | str,
+    num_particles: tuple[int, int],
+    two_qubit_reduction: bool,
+):
+    """Build the fermion-to-qubit mapper for the given configuration.
 
-    Lower-level entry point used by VQE to avoid re-running PySCF.
-    :func:`build_hamiltonian` delegates here.
+    Single source of truth for mapper selection. The Hamiltonian builder, the
+    VQE ansatz, and 1-RDM extraction must all build operators with the *same*
+    mapper, or the qubit counts and operator bases diverge (e.g. a hardcoded
+    Jordan-Wigner 1-RDM operator panics against a parity+2qr statevector).
+
+    ``two_qubit_reduction`` is only valid with parity mapping.
     """
     from qiskit_nature.second_q.mappers import JordanWignerMapper, ParityMapper
 
@@ -83,15 +87,29 @@ def map_integrals_to_qubit_op(
             f"got mapping={mapping.value!r}"
         )
 
-    fermionic_op = integrals.problem.hamiltonian.second_q_op()
-
     if mapping is QubitMapping.JORDAN_WIGNER:
-        mapper = JordanWignerMapper()
-    elif two_qubit_reduction:
-        mapper = ParityMapper(num_particles=integrals.num_particles)
-    else:
-        mapper = ParityMapper()
+        return JordanWignerMapper()
+    if two_qubit_reduction:
+        return ParityMapper(num_particles=num_particles)
+    return ParityMapper()
 
+
+def map_integrals_to_qubit_op(
+    integrals: MolecularIntegrals,
+    mapping: QubitMapping | str = QubitMapping.JORDAN_WIGNER,
+    two_qubit_reduction: bool = False,
+) -> QubitHamiltonian:
+    """Map a pre-computed :class:`MolecularIntegrals` to a qubit Hamiltonian.
+
+    Lower-level entry point used by VQE to avoid re-running PySCF.
+    :func:`build_hamiltonian` delegates here.
+    """
+    if isinstance(mapping, str):
+        mapping = QubitMapping(mapping)
+
+    mapper = make_mapper(mapping, integrals.num_particles, two_qubit_reduction)
+
+    fermionic_op = integrals.problem.hamiltonian.second_q_op()
     qubit_op: SparsePauliOp = mapper.map(fermionic_op)
 
     return QubitHamiltonian(

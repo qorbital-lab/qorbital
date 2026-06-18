@@ -1,20 +1,19 @@
 """Tests for trajectory bundle export."""
 
 import struct
-from pathlib import Path
 
 import numpy as np
 import pytest
 
+from qorbital.chemistry.density import compute_density
+from qorbital.chemistry.hamiltonian import build_hamiltonian
+from qorbital.chemistry.integrals import compute_integrals
 from qorbital.viz.schema import load_bundle
 from qorbital.viz.trajectories import (
     build_molecule_bundle,
     density_grid_to_sidecar,
     trajectories_to_sidecar,
 )
-from qorbital.chemistry.density import compute_density
-from qorbital.chemistry.integrals import compute_integrals
-from qorbital.chemistry.hamiltonian import build_hamiltonian
 
 
 @pytest.fixture

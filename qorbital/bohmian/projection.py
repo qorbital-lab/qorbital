@@ -60,18 +60,17 @@ def project_homo_orbital(
     Simpler than natural-orbital projection; visually similar for many
     closed-shell molecules when NO projection produces poor results.
     """
-    from qorbital.chemistry.density import WavefunctionGrid as WFG
-    from qorbital.chemistry.density import _ANGSTROM_TO_BOHR, _molecule_meta
     from pyscf import gto
+
+    from qorbital.chemistry.density import _ANGSTROM_TO_BOHR, _molecule_meta
+    from qorbital.chemistry.density import WavefunctionGrid as WFG
 
     resolved, charge, spin = _molecule_meta(atom_string)
     mo_coeff = integrals.mo_coefficients
     n_occ = integrals.num_particles[0]
     homo_ao = mo_coeff[:, n_occ - 1]
 
-    mol = gto.M(
-        atom=resolved, basis=basis, charge=charge, spin=spin, unit="Angstrom"
-    )
+    mol = gto.M(atom=resolved, basis=basis, charge=charge, spin=spin, unit="Angstrom")
     grid_bohr = density_grid.grid_points * _ANGSTROM_TO_BOHR
     ao_vals = mol.eval_gto("GTOval_sph", grid_bohr)
     psi_flat = ao_vals @ homo_ao.astype(np.complex128)

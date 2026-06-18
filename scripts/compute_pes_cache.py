@@ -6,12 +6,14 @@ import argparse
 
 import numpy as np
 
-from qorbital.chemistry.pes import compute_pes, save_pes
 from qorbital.chemistry.molecules import get_molecule_params
+from qorbital.chemistry.pes import compute_pes, save_pes
 from qorbital.vqe.backends import Backend
 
 
-def compute_pes_exact(molecule: str, bond_lengths: list[float]) -> list[tuple[float, float]]:
+def compute_pes_exact(
+    molecule: str, bond_lengths: list[float]
+) -> list[tuple[float, float]]:
     """Exact-diagonalization PES (fast; useful for LiH where VQE is slow)."""
     from qorbital.chemistry.hamiltonian import build_hamiltonian
 
@@ -54,14 +56,32 @@ def main() -> None:
     if args.bond_lengths is None:
         if args.molecule == "H2":
             args.bond_lengths = [
-                0.55, 0.65, 0.735, 0.85, 0.95, 1.05, 1.15, 1.25, 1.35, 1.5
+                0.55,
+                0.65,
+                0.735,
+                0.85,
+                0.95,
+                1.05,
+                1.15,
+                1.25,
+                1.35,
+                1.5,
             ]
         elif args.molecule == "LiH":
-            args.bond_lengths = [
-                1.2, 1.35, 1.5, 1.596, 1.7, 1.85, 2.0, 2.2, 2.4, 2.6
-            ]
+            args.bond_lengths = [1.2, 1.35, 1.5, 1.596, 1.7, 1.85, 2.0, 2.2, 2.4, 2.6]
         else:
-            args.bond_lengths = [0.6, 0.7, 0.772, 0.85, 0.95, 1.05, 1.15, 1.25, 1.4, 1.6]
+            args.bond_lengths = [
+                0.6,
+                0.7,
+                0.772,
+                0.85,
+                0.95,
+                1.05,
+                1.15,
+                1.25,
+                1.4,
+                1.6,
+            ]
 
     if args.method == "exact":
         pes = compute_pes_exact(args.molecule, args.bond_lengths)

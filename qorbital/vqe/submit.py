@@ -12,7 +12,6 @@ from typing import Any
 
 from qorbital.chemistry.molecules import (
     DEFAULT_BOND_LENGTHS,
-    MOLECULE_PARAMS,
     get_molecule_params,
 )
 from qorbital.vqe.backends import Backend

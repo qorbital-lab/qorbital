@@ -8,9 +8,10 @@ import numpy as np
 from numpy.typing import NDArray
 from pyscf import gto
 from qiskit.quantum_info import Statevector
-from qiskit_nature.second_q.mappers import JordanWignerMapper
+from qiskit_nature.second_q.mappers import QubitMapper
 from qiskit_nature.second_q.operators import FermionicOp
 
+from qorbital.chemistry.hamiltonian import QubitMapping, make_mapper
 from qorbital.chemistry.integrals import MolecularIntegrals
 
 _ANGSTROM_TO_BOHR = 1.8897259886
@@ -37,17 +38,19 @@ class ElectronDensityGrid:
 def _extract_rdm1(
     statevector: NDArray[np.complex128],
     num_spatial_orbitals: int,
-    num_particles: tuple[int, int],
+    mapper: QubitMapper,
 ) -> NDArray[np.float64]:
-    """Spin-free 1-RDM ``gamma_pq`` from a Jordan-Wigner mapped statevector.
+    """Spin-free 1-RDM ``gamma_pq`` from a mapped statevector.
 
     Each element is computed as the expectation value of ``a+_p a_q``
     summed over spin sectors, built as a :class:`FermionicOp` and mapped
-    to qubit space before evaluation against the statevector.
+    to qubit space with ``mapper`` before evaluation against the statevector.
+    ``mapper`` must be the same mapper that produced ``statevector`` (the
+    parity 2-qubit reduction, for instance, changes both the qubit count and
+    the operator basis), or the qubit dimensions will not match.
     """
     n_orb = num_spatial_orbitals
     n_so = 2 * n_orb
-    mapper = JordanWignerMapper()
     sv = Statevector(np.ascontiguousarray(statevector, dtype=np.complex128))
 
     rdm1 = np.zeros((n_orb, n_orb), dtype=np.float64)
@@ -116,6 +119,8 @@ def compute_density(
     basis: str = "sto-3g",
     charge: int = 0,
     spin: int = 0,
+    mapping: QubitMapping | str = QubitMapping.JORDAN_WIGNER,
+    two_qubit_reduction: bool = False,
 ) -> ElectronDensityGrid:
     """Compute electron density on a 3D grid from a statevector.
 
@@ -126,9 +131,12 @@ def compute_density(
     name (``"H2"``, ``"LiH"``, ``"HeH+"``, ``"BeH2"``) or a raw PySCF
     atom string (``"H 0 0 0; H 0 0 0.735"``); it is required because
     :class:`MolecularIntegrals` does not retain the geometry needed to
-    reconstruct a PySCF ``Mole`` for basis function evaluation.  Only
-    Jordan-Wigner mapped statevectors are supported; closed-shell
-    molecules are assumed.
+    reconstruct a PySCF ``Mole`` for basis function evaluation.
+
+    ``mapping`` / ``two_qubit_reduction`` must match the mapper that produced
+    ``statevector`` (e.g. parity + 2-qubit reduction for LiH); they select the
+    same mapper used to build the ``a+_p a_q`` operators so the qubit count
+    matches the statevector.  Closed-shell molecules are assumed.
     """
     if atom_string is None:
         msg = (
@@ -140,10 +148,11 @@ def compute_density(
 
     resolved, charge, spin = _molecule_meta(atom_string)
 
+    mapper = make_mapper(mapping, integrals.num_particles, two_qubit_reduction)
     rdm1_mo = _extract_rdm1(
         statevector,
         integrals.num_spatial_orbitals,
-        integrals.num_particles,
+        mapper,
     )
     total_electrons = float(np.trace(rdm1_mo))
 
@@ -155,9 +164,7 @@ def compute_density(
     occupations = occupations[idx]
     natural_mos = natural_mos[:, idx]
 
-    mol = gto.M(
-        atom=resolved, basis=basis, charge=charge, spin=spin, unit="Angstrom"
-    )
+    mol = gto.M(atom=resolved, basis=basis, charge=charge, spin=spin, unit="Angstrom")
     atom_coords_ang = mol.atom_coords() / _ANGSTROM_TO_BOHR
 
     grid_flat, grid_shape, origin, spacing, extent = _build_grid(
@@ -236,9 +243,7 @@ def wavefunction_grid(
     no_mo = density_grid.natural_orbitals_mo[:, orbital_index]
     no_ao = mo_coeff @ no_mo
 
-    mol = gto.M(
-        atom=resolved, basis=basis, charge=charge, spin=spin, unit="Angstrom"
-    )
+    mol = gto.M(atom=resolved, basis=basis, charge=charge, spin=spin, unit="Angstrom")
     grid_bohr = density_grid.grid_points * _ANGSTROM_TO_BOHR
     ao_vals = mol.eval_gto("GTOval_sph", grid_bohr)
     psi_flat = ao_vals @ no_ao.astype(np.complex128)
@@ -271,6 +276,8 @@ def wavefunction_grid_from_statevector(
     basis: str = "sto-3g",
     orbital_index: int = 0,
     phase: NDArray[np.complex128] | complex | None = None,
+    mapping: QubitMapping | str = QubitMapping.JORDAN_WIGNER,
+    two_qubit_reduction: bool = False,
 ) -> WavefunctionGrid:
     """Convenience wrapper: compute_density then wavefunction_grid."""
     density = compute_density(
@@ -280,6 +287,8 @@ def wavefunction_grid_from_statevector(
         padding=padding,
         atom_string=atom_string,
         basis=basis,
+        mapping=mapping,
+        two_qubit_reduction=two_qubit_reduction,
     )
     return wavefunction_grid(
         density,

@@ -5,17 +5,17 @@ from dataclasses import dataclass
 
 import numpy as np
 from numpy.typing import NDArray
-from qiskit.primitives import BaseEstimatorV2, StatevectorEstimator
+from qiskit.primitives import BaseEstimatorV2
 from qiskit.quantum_info import Statevector
 from qiskit_algorithms import VQE
 from qiskit_algorithms.optimizers import COBYLA, SLSQP
 from qiskit_nature.second_q.circuit.library import UCCSD, HartreeFock
-from qiskit_nature.second_q.mappers import JordanWignerMapper, ParityMapper
 
 from qorbital.chemistry.hamiltonian import (
     QubitHamiltonian,
     QubitMapping,
     build_hamiltonian,
+    make_mapper,
 )
 from qorbital.vqe.backends import Backend, make_estimator
 
@@ -43,6 +43,8 @@ class VQEResult:
     convergence_history: list[VQEIterationData]  # per-iteration snapshots
     optimizer_name: str  # e.g. "SLSQP"
     ansatz_name: str  # e.g. "UCCSD"
+    mapping: QubitMapping  # mapper that produced optimal_statevector
+    two_qubit_reduction: bool  # parity 2-qubit reduction flag
 
 
 OPTIMIZER_REGISTRY: dict[str, type] = {
@@ -52,21 +54,11 @@ OPTIMIZER_REGISTRY: dict[str, type] = {
 
 
 def _build_ansatz(qubit_hamiltonian: QubitHamiltonian) -> UCCSD:
-    if (
-        qubit_hamiltonian.two_qubit_reduction
-        and qubit_hamiltonian.mapping is not QubitMapping.PARITY
-    ):
-        raise ValueError(
-            "two_qubit_reduction is only supported with parity mapping, "
-            f"got mapping={qubit_hamiltonian.mapping.value!r}"
-        )
-
-    if qubit_hamiltonian.mapping is QubitMapping.JORDAN_WIGNER:
-        mapper = JordanWignerMapper()
-    elif qubit_hamiltonian.two_qubit_reduction:
-        mapper = ParityMapper(num_particles=qubit_hamiltonian.num_particles)
-    else:
-        mapper = ParityMapper()
+    mapper = make_mapper(
+        qubit_hamiltonian.mapping,
+        qubit_hamiltonian.num_particles,
+        qubit_hamiltonian.two_qubit_reduction,
+    )
 
     initial_state = HartreeFock(
         num_spatial_orbitals=qubit_hamiltonian.num_spatial_orbitals,
@@ -155,6 +147,8 @@ def run_vqe_from_hamiltonian(
         convergence_history=convergence_history,
         optimizer_name=optimizer_name,
         ansatz_name="UCCSD",
+        mapping=qubit_hamiltonian.mapping,
+        two_qubit_reduction=qubit_hamiltonian.two_qubit_reduction,
     )
 
 

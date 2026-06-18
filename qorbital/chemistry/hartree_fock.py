@@ -3,16 +3,15 @@
 from __future__ import annotations
 
 import numpy as np
-from numpy.typing import NDArray
+from pyscf import gto
 
 from qorbital.chemistry.density import (
-    ElectronDensityGrid,
     _ANGSTROM_TO_BOHR,
+    ElectronDensityGrid,
     _build_grid,
 )
 from qorbital.chemistry.integrals import compute_integrals
 from qorbital.chemistry.molecules import get_molecule_params, resolve_atom_string
-from pyscf import gto
 
 
 def compute_hf_density(
@@ -38,9 +37,7 @@ def compute_hf_density(
 
     n_occ = integrals.num_particles[0]
     mo_coeff = integrals.mo_coefficients
-    rdm1_mo = np.zeros(
-        (integrals.num_spatial_orbitals, integrals.num_spatial_orbitals)
-    )
+    rdm1_mo = np.zeros((integrals.num_spatial_orbitals, integrals.num_spatial_orbitals))
     for i in range(n_occ):
         rdm1_mo[i, i] = 2.0
 

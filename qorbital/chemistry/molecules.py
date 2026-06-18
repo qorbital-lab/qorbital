@@ -33,9 +33,7 @@ class MoleculeParams:
 MOLECULE_PARAMS: dict[str, MoleculeParams] = {
     "H2": MoleculeParams(charge=0, spin=0, mapping="jordan_wigner"),
     "HeH+": MoleculeParams(charge=1, spin=0, mapping="jordan_wigner"),
-    "LiH": MoleculeParams(
-        charge=0, spin=0, mapping="parity", two_qubit_reduction=True
-    ),
+    "LiH": MoleculeParams(charge=0, spin=0, mapping="parity", two_qubit_reduction=True),
     "BeH2": MoleculeParams(charge=0, spin=0, mapping="jordan_wigner"),
 }
 
