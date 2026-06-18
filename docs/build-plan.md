@@ -59,6 +59,7 @@ Dependencies are noted per segment. Within a phase, segments can mostly run in p
 ## Phase 2+3 — Route-B superposition engine (backend)
 
 ### [B2] Eigenstate producer: `lowest_eigenstates`
+**Status:** DONE
 **Scope:** New function `lowest_eigenstates(qubit_hamiltonian, k=2)` (in `qorbital/chemistry/eigenstates.py` or extend `hamiltonian.py`). Diagonalize `qubit_op.to_matrix()` via `np.linalg.eigh`; return the `k` lowest `(eigenvector, energy)` pairs. Eigenvectors are statevectors in the Hamiltonian's mapper basis (parity+2qr for LiH).
 **Acceptance:** energies match `np.linalg.eigvalsh` to ~1e-10; H₂ E₀ ≈ −1.857 Ha electronic; unit test asserts ordering and orthonormality.
 

@@ -6,6 +6,7 @@ from qorbital.chemistry.density import (
     compute_density,
     wavefunction_grid,
 )
+from qorbital.chemistry.eigenstates import lowest_eigenstates
 from qorbital.chemistry.hamiltonian import (
     QubitHamiltonian,
     QubitMapping,
@@ -35,6 +36,7 @@ __all__ = [
     "compute_hf_density",
     "compute_integrals",
     "get_molecule_params",
+    "lowest_eigenstates",
     "map_integrals_to_qubit_op",
     "wavefunction_grid",
 ]
