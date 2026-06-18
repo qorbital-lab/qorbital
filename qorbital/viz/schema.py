@@ -59,6 +59,15 @@ class TrajectorySet:
     paths: str
     path_layout: str = "particle-major"
     color_by: str = "speed"
+    times: list[float] | None = None
+    period: float | None = None
+    state_indices: list[int] | None = None
+    E0: float | None = None
+    E1: float | None = None
+    c0: float | None = None
+    c1: float | None = None
+    omega: float | None = None
+    source: str | None = None
 
 
 @dataclass
@@ -154,6 +163,66 @@ def density_from_dict(data: dict[str, Any]) -> MeshSurface | DensityGrid:
     raise ValueError(msg)
 
 
+def _optional_float(data: dict[str, Any], key: str) -> float | None:
+    if key not in data or data[key] is None:
+        return None
+    return float(data[key])
+
+
+def _trajectory_from_dict(data: dict[str, Any]) -> TrajectorySet:
+    raw_indices = data.get("state_indices")
+    state_indices = [int(i) for i in raw_indices] if raw_indices is not None else None
+    raw_times = data.get("times")
+    times = [float(t) for t in raw_times] if raw_times is not None else None
+    return TrajectorySet(
+        particles=int(data["particles"]),
+        steps=int(data["steps"]),
+        dt=float(data["dt"]),
+        paths=data["paths"],
+        path_layout=data.get("path_layout", "particle-major"),
+        color_by=data.get("color_by", "speed"),
+        times=times,
+        period=_optional_float(data, "period"),
+        state_indices=state_indices,
+        E0=_optional_float(data, "E0"),
+        E1=_optional_float(data, "E1"),
+        c0=_optional_float(data, "c0"),
+        c1=_optional_float(data, "c1"),
+        omega=_optional_float(data, "omega"),
+        source=data.get("source"),
+    )
+
+
+def _trajectory_to_dict(traj: TrajectorySet) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "particles": traj.particles,
+        "steps": traj.steps,
+        "dt": traj.dt,
+        "paths": traj.paths,
+        "path_layout": traj.path_layout,
+        "color_by": traj.color_by,
+    }
+    if traj.times is not None:
+        payload["times"] = traj.times
+    if traj.period is not None:
+        payload["period"] = traj.period
+    if traj.state_indices is not None:
+        payload["state_indices"] = traj.state_indices
+    if traj.E0 is not None:
+        payload["E0"] = traj.E0
+    if traj.E1 is not None:
+        payload["E1"] = traj.E1
+    if traj.c0 is not None:
+        payload["c0"] = traj.c0
+    if traj.c1 is not None:
+        payload["c1"] = traj.c1
+    if traj.omega is not None:
+        payload["omega"] = traj.omega
+    if traj.source is not None:
+        payload["source"] = traj.source
+    return payload
+
+
 def bundle_from_dict(data: dict[str, Any]) -> VisualizationBundle:
     version = data.get("schema_version", "")
     if not version.startswith("0."):
@@ -177,14 +246,7 @@ def bundle_from_dict(data: dict[str, Any]) -> VisualizationBundle:
 
     trajectories = None
     if raw_traj := data.get("trajectories"):
-        trajectories = TrajectorySet(
-            particles=int(raw_traj["particles"]),
-            steps=int(raw_traj["steps"]),
-            dt=float(raw_traj["dt"]),
-            paths=raw_traj["paths"],
-            path_layout=raw_traj.get("path_layout", "particle-major"),
-            color_by=raw_traj.get("color_by", "speed"),
-        )
+        trajectories = _trajectory_from_dict(raw_traj)
 
     comparison = None
     if raw_cmp := data.get("comparison"):
@@ -237,7 +299,7 @@ def bundle_to_dict(bundle: VisualizationBundle) -> dict[str, Any]:
     if bundle.reference_energies is not None:
         payload["reference_energies"] = bundle.reference_energies
     if bundle.trajectories is not None:
-        payload["trajectories"] = asdict(bundle.trajectories)
+        payload["trajectories"] = _trajectory_to_dict(bundle.trajectories)
     if bundle.comparison is not None:
         payload["comparison"] = _density_to_dict(bundle.comparison)
     if bundle.provenance is not None:

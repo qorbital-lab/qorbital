@@ -5,10 +5,12 @@ from __future__ import annotations
 import struct
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.typing import NDArray
 
+from qorbital.bohmian.velocity import superposition_period
 from qorbital.chemistry.density import ElectronDensityGrid
 from qorbital.viz.schema import (
     SCHEMA_VERSION,
@@ -21,6 +23,9 @@ from qorbital.viz.schema import (
     VisualizationBundle,
     save_bundle,
 )
+
+if TYPE_CHECKING:
+    from qorbital.chemistry.superposition import SuperpositionState
 
 # Element positions for registry molecules (Angstrom, along z-axis)
 _NUCLEUS_OFFSETS: dict[str, list[tuple[str, list[float]]]] = {
@@ -49,18 +54,82 @@ def trajectories_to_sidecar(
     directory: Path,
     filename: str,
     dt: float = 0.1,
+    *,
+    times: NDArray[np.float64] | None = None,
+    superposition: SuperpositionState | None = None,
+    period: float | None = None,
 ) -> TrajectorySet:
     """Write trajectories as a float32 sidecar and return a TrajectorySet."""
     n_particles, n_steps, _ = trajectories.shape
     sidecar_path = directory / filename
     _write_float32_sidecar(sidecar_path, trajectories.astype(np.float32))
+
+    times_list: list[float] | None = None
+    resolved_dt = dt
+    if times is not None:
+        times_arr = np.asarray(times, dtype=np.float64).ravel()
+        if times_arr.shape[0] != n_steps:
+            msg = (
+                f"times length {times_arr.shape[0]} must match trajectory steps "
+                f"{n_steps}"
+            )
+            raise ValueError(msg)
+        times_list = [float(t) for t in times_arr]
+        if n_steps > 1:
+            resolved_dt = float((times_arr[-1] - times_arr[0]) / (n_steps - 1))
+
+    resolved_period = period
+    state_indices: list[int] | None = None
+    e0: float | None = None
+    e1: float | None = None
+    c0: float | None = None
+    c1: float | None = None
+    omega: float | None = None
+    source: str | None = None
+    if superposition is not None:
+        state_indices = [int(i) for i in superposition.state_indices]
+        e0 = superposition.E0
+        e1 = superposition.E1
+        c0 = superposition.c0
+        c1 = superposition.c1
+        omega = superposition.omega
+        source = superposition.source
+        if resolved_period is None:
+            resolved_period = superposition_period(e0, e1)
+
     return TrajectorySet(
         particles=n_particles,
         steps=n_steps,
-        dt=dt,
+        dt=resolved_dt,
         paths=filename,
         path_layout="particle-major",
         color_by="speed",
+        times=times_list,
+        period=resolved_period,
+        state_indices=state_indices,
+        E0=e0,
+        E1=e1,
+        c0=c0,
+        c1=c1,
+        omega=omega,
+        source=source,
+    )
+
+
+def trajectory_set_from_superposition(
+    trajectories: NDArray[np.float64],
+    directory: Path,
+    filename: str,
+    state: SuperpositionState,
+    times: NDArray[np.float64],
+) -> TrajectorySet:
+    """Write superposition trajectories with B3-aligned metadata."""
+    return trajectories_to_sidecar(
+        trajectories,
+        directory,
+        filename,
+        superposition=state,
+        times=times,
     )
 
 

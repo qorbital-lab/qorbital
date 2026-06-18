@@ -5,14 +5,17 @@ import struct
 import numpy as np
 import pytest
 
+from qorbital.bohmian.velocity import superposition_period
 from qorbital.chemistry.density import compute_density
 from qorbital.chemistry.hamiltonian import build_hamiltonian
 from qorbital.chemistry.integrals import compute_integrals
-from qorbital.viz.schema import load_bundle
+from qorbital.chemistry.superposition import build_superposition_state
+from qorbital.viz.schema import _trajectory_to_dict, load_bundle
 from qorbital.viz.trajectories import (
     build_molecule_bundle,
     density_grid_to_sidecar,
     trajectories_to_sidecar,
+    trajectory_set_from_superposition,
 )
 
 
@@ -55,3 +58,41 @@ class TestTrajectoryExport:
         assert bundle.molecule.id == "H2"
         assert bundle.trajectories is not None
         assert bundle.trajectories.particles == 3
+
+    def test_sidecar_without_superposition_unchanged(self, tmp_path):
+        traj = np.zeros((3, 5, 3))
+        traj_set = trajectories_to_sidecar(traj, tmp_path, "plain.bin", dt=0.1)
+        payload = _trajectory_to_dict(traj_set)
+        assert payload.keys() == {
+            "particles",
+            "steps",
+            "dt",
+            "paths",
+            "path_layout",
+            "color_by",
+        }
+
+    def test_sidecar_with_superposition_metadata(self, tmp_path):
+        state = build_superposition_state("H2", bond_length=0.735, grid_points=15)
+        n_steps = 50
+        period = superposition_period(state.E0, state.E1)
+        times = np.linspace(0.0, period, n_steps)
+        traj = np.zeros((5, n_steps, 3))
+        traj_set = trajectory_set_from_superposition(
+            traj, tmp_path, "super.bin", state, times
+        )
+        assert traj_set.state_indices == [0, 1]
+        assert traj_set.E0 == pytest.approx(state.E0)
+        assert traj_set.E1 == pytest.approx(state.E1)
+        assert traj_set.c0 == pytest.approx(state.c0)
+        assert traj_set.c1 == pytest.approx(state.c1)
+        assert traj_set.omega == pytest.approx(state.omega)
+        assert traj_set.source == state.source
+        assert traj_set.period == pytest.approx(period)
+        assert traj_set.times == pytest.approx(times.tolist())
+        assert traj_set.dt == pytest.approx(period / (n_steps - 1))
+        assert traj_set.steps == n_steps
+        payload = _trajectory_to_dict(traj_set)
+        assert "E0" in payload
+        assert "c0" in payload
+        assert "coefficients" not in payload

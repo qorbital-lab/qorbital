@@ -92,6 +92,7 @@ Dependencies are noted per segment. Within a phase, segments can mostly run in p
 > The viewer **already** animates `(n_particles, n_timesteps, 3)` trajectories with a comet head + fading trail, play/pause, period-aware loop, and Copenhagen/Bohmian/Ensemble presets (`TrajectoryPaths.js`, `QorbitalApp.js:350-385`). Most "animation" work is done — the gaps are schema metadata, a scrubber, and three missing layers.
 
 ### [F1] Extend the bundle schema for superposition time-series
+**Status:** DONE
 **Scope:** Add `times` (or keep `dt` + `steps`), `period`, and superposition metadata (`state_indices`, `E0/E1`, `coefficients`, `omega`, `source`) to `TrajectorySet` (`qorbital/viz/schema.py:55-62`) and the writer `trajectories_to_sidecar` (`qorbital/viz/trajectories.py:47-64`). This is the F-side of the B3 contract — coordinate field names with B3 before either side codes.
 **Acceptance:** round-trip serialize/deserialize test; existing bundles still load (back-compat defaults for missing fields).
 
