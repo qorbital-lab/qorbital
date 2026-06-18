@@ -6,10 +6,18 @@ import numpy as np
 import pytest
 
 from qorbital.bohmian.integrator import integrate_trajectories
-from qorbital.bohmian.velocity import add_azimuthal_phase, velocity_field
+from qorbital.bohmian.velocity import (
+    SuperpositionVelocityContext,
+    add_azimuthal_phase,
+    superposition_period,
+    superposition_velocity_at_time,
+    superposition_wavefunction,
+    velocity_field,
+)
 from qorbital.chemistry.density import compute_density, wavefunction_grid
 from qorbital.chemistry.hamiltonian import build_hamiltonian
 from qorbital.chemistry.integrals import compute_integrals
+from qorbital.chemistry.superposition import build_superposition_state
 
 
 def _h2_lcao_psi(nx: int = 20) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -110,3 +118,57 @@ class TestVQEIntegration:
         )
         assert traj.shape == (2, 20, 3)
         assert np.all(np.isfinite(traj))
+
+
+@pytest.fixture(scope="module")
+def h2_superposition():
+    return build_superposition_state("H2", bond_length=0.735, grid_points=25)
+
+
+class TestSuperpositionVelocity:
+    @pytest.mark.superposition
+    def test_superposition_wavefunction_shape(self, h2_superposition):
+        psi_t = superposition_wavefunction(
+            h2_superposition.phi0,
+            h2_superposition.phi1,
+            h2_superposition.E0,
+            h2_superposition.E1,
+            t=0.5,
+            c0=h2_superposition.c0,
+            c1=h2_superposition.c1,
+        )
+        assert psi_t.shape == h2_superposition.phi0.shape
+        assert np.all(np.isfinite(psi_t))
+
+    @pytest.mark.superposition
+    def test_superposition_period(self, h2_superposition):
+        period = superposition_period(h2_superposition.E0, h2_superposition.E1)
+        omega = h2_superposition.E1 - h2_superposition.E0
+        assert period == pytest.approx(2.0 * np.pi / omega, rel=1e-12)
+        assert period == pytest.approx(2.0 * np.pi / h2_superposition.omega, rel=1e-12)
+
+    @pytest.mark.superposition
+    def test_superposition_velocity_nonzero(self, h2_superposition):
+        ctx = SuperpositionVelocityContext.from_state(h2_superposition)
+        t = 0.25 / h2_superposition.omega
+        vx, vy, vz = superposition_velocity_at_time(ctx, t)
+        speed = np.abs(vx) + np.abs(vy) + np.abs(vz)
+        assert float(np.max(speed)) > 1e-6
+
+    @pytest.mark.superposition
+    def test_superposition_velocity_oscillates(self, h2_superposition):
+        ctx = SuperpositionVelocityContext.from_state(h2_superposition)
+        vx0, vy0, vz0 = superposition_velocity_at_time(ctx, 0.0)
+        t_quad = np.pi / (2.0 * h2_superposition.omega)
+        vx1, vy1, vz1 = superposition_velocity_at_time(ctx, t_quad)
+        speed0 = float(np.max(np.abs(vx0) + np.abs(vy0) + np.abs(vz0)))
+        speed1 = float(np.max(np.abs(vx1) + np.abs(vy1) + np.abs(vz1)))
+        assert abs(speed0 - speed1) > 1e-6
+
+    @pytest.mark.superposition
+    def test_real_phi0_alone_still_stationary(self, h2_superposition):
+        phi0_real = h2_superposition.phi0.real.astype(np.complex128)
+        vx, vy, vz = velocity_field(phi0_real, h2_superposition.spacing_angstrom)
+        assert np.max(np.abs(vx)) < 1e-10
+        assert np.max(np.abs(vy)) < 1e-10
+        assert np.max(np.abs(vz)) < 1e-10

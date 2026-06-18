@@ -70,6 +70,7 @@ Dependencies are noted per segment. Within a phase, segments can mostly run in p
 **Acceptance:** H₂ φ₀ matches the existing ground-state density to tolerance; φ₁ is orthogonal; LiH produces finite, sensible orbitals (or trips the documented HOMO/LUMO fallback).
 
 ### [B4] Time-dependent superposition wavefunction + velocity
+**Status:** DONE
 **Scope:** Add `superposition_wavefunction(phi0, phi1, E0, E1, t, c0, c1)` and a time-aware `velocity_field` path in `qorbital/bohmian/velocity.py`. Ψ(r,t) is generally complex even for real φₙ, so `Im[∇ψ/ψ]` is non-zero → trajectories move. Precompute `∇φ₀`, `∇φ₁` once. Add `superposition_period(E0,E1)` = `2π/ω`.
 **Reuse:** existing gradient/cutoff machinery in `velocity_field` (`velocity.py:45-70`); `add_azimuthal_phase` (`velocity.py:73-92`) stays as an alternative for single-state demos.
 **Acceptance:** for a two-state pair the velocity is non-zero and oscillates; closed-form oracle (see B5) matches.
