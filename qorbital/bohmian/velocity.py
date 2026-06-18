@@ -58,6 +58,29 @@ def _bohmian_velocity_from_gradients(
     )
 
 
+def bohmian_velocity_at_point(
+    psi: complex,
+    dpsi_dx: complex,
+    dpsi_dy: complex,
+    dpsi_dz: complex,
+    *,
+    hbar: float = _HBAR,
+    mass: float = _MASS,
+    density_cutoff: float = _DENSITY_CUTOFF,
+) -> tuple[float, float, float]:
+    """Pointwise Bohmian velocity v = (hbar/m) Im[grad psi / psi]."""
+    density = abs(psi) ** 2
+    if density < density_cutoff:
+        return (0.0, 0.0, 0.0)
+    scale = hbar / mass
+    with np.errstate(divide="ignore", invalid="ignore"):
+        return (
+            float(scale * np.imag(dpsi_dx / psi)),
+            float(scale * np.imag(dpsi_dy / psi)),
+            float(scale * np.imag(dpsi_dz / psi)),
+        )
+
+
 def velocity_field(
     psi: NDArray[np.complex128],
     spacing: NDArray[np.float64],

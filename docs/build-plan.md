@@ -76,6 +76,7 @@ Dependencies are noted per segment. Within a phase, segments can mostly run in p
 **Acceptance:** for a two-state pair the velocity is non-zero and oscillates; closed-form oracle (see B5) matches.
 
 ### [B5] Time-dependent trajectory integrator
+**Status:** DONE
 **Scope:** Extend `integrate_trajectories` (`qorbital/bohmian/integrator.py:11-40`) so the RHS recomputes velocity at each `t` from the superposition (currently `_velocity(t,y)` ignores `t` and interpolates a static field, `integrator.py:61-88`). Either (a) rebuild v(r,t) on the grid at each step then interpolate, or (b) interpolate φₙ and ∇φₙ once and evaluate Ψ(r,t) per-step (cheaper). Sample over ~2 periods (B4). Keep `solve_ivp` RK45. Output stays `(n_particles, n_timesteps, 3)`.
 **Acceptance:** 20 particles × 100 steps over 2 periods runs < 5 s; positions are **periodic** (return near start after one period); norm/probability conserved.
 

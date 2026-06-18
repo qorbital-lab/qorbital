@@ -5,7 +5,11 @@ import time
 import numpy as np
 import pytest
 
-from qorbital.bohmian.integrator import integrate_trajectories
+from qorbital.bohmian.integrator import (
+    integrate_superposition_trajectories,
+    integrate_trajectories,
+    superposition_sampler_from_context,
+)
 from qorbital.bohmian.velocity import (
     SuperpositionVelocityContext,
     add_azimuthal_phase,
@@ -125,6 +129,11 @@ def h2_superposition():
     return build_superposition_state("H2", bond_length=0.735, grid_points=25)
 
 
+@pytest.fixture(scope="module")
+def h2_superposition_integrator():
+    return build_superposition_state("H2", bond_length=0.735, grid_points=20)
+
+
 class TestSuperpositionVelocity:
     @pytest.mark.superposition
     def test_superposition_wavefunction_shape(self, h2_superposition):
@@ -172,3 +181,73 @@ class TestSuperpositionVelocity:
         assert np.max(np.abs(vx)) < 1e-10
         assert np.max(np.abs(vy)) < 1e-10
         assert np.max(np.abs(vz)) < 1e-10
+
+
+def _h2_superposition_seeds(n_particles: int = 20) -> np.ndarray:
+    return np.array([[0.0, 0.0, z] for z in np.linspace(-0.15, 0.15, n_particles)])
+
+
+class TestSuperpositionIntegrator:
+    @pytest.mark.integrator
+    def test_superposition_trajectory_shape(self, h2_superposition_integrator):
+        ctx = SuperpositionVelocityContext.from_state(h2_superposition_integrator)
+        seeds = _h2_superposition_seeds(20)
+        traj = integrate_superposition_trajectories(
+            ctx, seeds, n_periods=2.0, n_steps=100
+        )
+        assert traj.shape == (20, 100, 3)
+        assert np.all(np.isfinite(traj))
+
+    @pytest.mark.integrator
+    def test_superposition_runtime_gate(self, h2_superposition_integrator):
+        ctx = SuperpositionVelocityContext.from_state(h2_superposition_integrator)
+        seeds = _h2_superposition_seeds(20)
+        t0 = time.perf_counter()
+        integrate_superposition_trajectories(ctx, seeds, n_periods=2.0, n_steps=100)
+        elapsed = time.perf_counter() - t0
+        assert elapsed < 5.0
+
+    @pytest.mark.periodic
+    def test_superposition_trajectories_periodic(self, h2_superposition_integrator):
+        ctx = SuperpositionVelocityContext.from_state(h2_superposition_integrator)
+        seeds = _h2_superposition_seeds(20)
+        period = superposition_period(
+            h2_superposition_integrator.E0, h2_superposition_integrator.E1
+        )
+        n_steps = 100
+        traj = integrate_superposition_trajectories(
+            ctx, seeds, n_periods=2.0, n_steps=n_steps
+        )
+        t_eval = np.linspace(0.0, 2.0 * period, n_steps)
+        period_idx = int(np.argmin(np.abs(t_eval - period)))
+        displacement = np.linalg.norm(traj[:, period_idx, :] - traj[:, 0, :], axis=1)
+        assert np.all(displacement < 0.15)
+
+    @pytest.mark.integrator
+    def test_superposition_probability_conserved(self, h2_superposition_integrator):
+        from qorbital.chemistry.density import _ANGSTROM_TO_BOHR
+
+        ctx = SuperpositionVelocityContext.from_state(h2_superposition_integrator)
+        sampler = superposition_sampler_from_context(ctx)
+        seeds = _h2_superposition_seeds(5)
+        period = superposition_period(
+            h2_superposition_integrator.E0, h2_superposition_integrator.E1
+        )
+        n_steps = 50
+        traj = integrate_superposition_trajectories(
+            ctx, seeds, n_periods=1.0, n_steps=n_steps
+        )
+        t_eval = np.linspace(0.0, period, n_steps)
+        spreads = []
+        for particle in range(seeds.shape[0]):
+            densities = []
+            for step, t in enumerate(t_eval):
+                pos_bohr = traj[particle, step, :] * _ANGSTROM_TO_BOHR
+                psi = sampler.wavefunction_at(t, pos_bohr)
+                densities.append(abs(psi) ** 2)
+            mean_density = float(np.mean(densities))
+            if mean_density < 1e-12:
+                continue
+            spreads.append(float(np.std(densities) / mean_density))
+        assert spreads
+        assert float(np.median(spreads)) < 0.35
