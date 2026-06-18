@@ -64,6 +64,7 @@ Dependencies are noted per segment. Within a phase, segments can mostly run in p
 **Acceptance:** energies match `np.linalg.eigvalsh` to ~1e-10; H₂ E₀ ≈ −1.857 Ha electronic; unit test asserts ordering and orthonormality.
 
 ### [B3] Eigenstate → grid projection + superposition contract
+**Status:** DONE
 **Scope:** For each eigenvector φₙ from B2, produce a real-space single-particle grid by reusing the mapper-aware 1-RDM path (B1) → diagonalize the 1-RDM → dominant natural orbital → `wavefunction_grid_from_statevector` (`qorbital/chemistry/density.py:265-291`) / `project_natural_orbital` (`qorbital/bohmian/projection.py:16-48`). Both φ₀ and φ₁ must land on a **common grid**, normalized. **Define the superposition data contract here** (consumed by B4, B6, F1): grid axes/spacing in atomic units, `state_indices=(0,1)`, `E₀/E₁`, `c₀/c₁`, `ω`, `source ∈ {exact_diag, hardware_ground+exact_excited}`.
 **Reuse:** `project_homo_orbital` (`projection.py:51-92`) is the LiH fallback per the locked decision.
 **Acceptance:** H₂ φ₀ matches the existing ground-state density to tolerance; φ₁ is orthogonal; LiH produces finite, sensible orbitals (or trips the documented HOMO/LUMO fallback).

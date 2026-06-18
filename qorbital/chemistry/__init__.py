@@ -21,6 +21,10 @@ from qorbital.chemistry.molecules import (
     MOLECULE_REGISTRY,
     get_molecule_params,
 )
+from qorbital.chemistry.superposition import (
+    SuperpositionState,
+    build_superposition_state,
+)
 
 __all__ = [
     "DEFAULT_BOND_LENGTHS",
@@ -38,5 +42,7 @@ __all__ = [
     "get_molecule_params",
     "lowest_eigenstates",
     "map_integrals_to_qubit_op",
+    "SuperpositionState",
+    "build_superposition_state",
     "wavefunction_grid",
 ]
