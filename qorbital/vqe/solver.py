@@ -17,7 +17,7 @@ from qorbital.chemistry.hamiltonian import (
     build_hamiltonian,
     make_mapper,
 )
-from qorbital.vqe.backends import Backend, make_estimator
+from qorbital.vqe.backends import Backend, make_local_estimator
 
 
 @dataclass
@@ -114,8 +114,12 @@ def run_vqe_from_hamiltonian(
         )
     opt = OPTIMIZER_REGISTRY[optimizer_name](maxiter=max_iterations)
 
+    # Locked decision: the optimizer always runs on the local statevector
+    # simulator regardless of `backend`.  IonQ credits are spent only on the
+    # converged circuit (evaluation/submission, handled in submit.py / B9), so
+    # `backend`/`shots` do not steer the optimization loop here.
     if estimator is None:
-        estimator = make_estimator(backend, shots=shots)
+        estimator = make_local_estimator()
 
     convergence_history: list[VQEIterationData] = []
     vqe_callback = _make_callback(convergence_history, callback)

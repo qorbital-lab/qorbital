@@ -15,3 +15,6 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line(
         "markers", "oracle: B6 closed-form physics and behavioural gates"
     )
+    config.addinivalue_line(
+        "markers", "hardware: touches a real IonQ backend (skipped without an API key)"
+    )

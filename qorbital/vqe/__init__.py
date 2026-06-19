@@ -1,6 +1,6 @@
 """VQE solver, backend selection, and submission."""
 
-from qorbital.vqe.backends import Backend, make_estimator
+from qorbital.vqe.backends import Backend, make_estimator, make_local_estimator
 from qorbital.vqe.solver import (
     VQEIterationData,
     VQEResult,
@@ -15,6 +15,7 @@ __all__ = [
     "VQEIterationData",
     "VQEResult",
     "make_estimator",
+    "make_local_estimator",
     "run_vqe",
     "run_vqe_from_hamiltonian",
     "submit_vqe",

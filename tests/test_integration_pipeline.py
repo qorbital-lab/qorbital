@@ -18,9 +18,8 @@ class TestBackends:
         est = make_estimator(Backend.AER)
         assert est is not None
 
-    def test_ionq_sim_estimator(self):
-        est = make_estimator(Backend.IONQ_SIM, shots=500)
-        assert est is not None
+    # IonQ-backed estimator behaviour is covered in tests/test_backends.py
+    # (real primitive with a key, clear error without one).
 
     def test_h2_vqe_aer_backend(self):
         from qorbital.vqe.solver import run_vqe
