@@ -17,7 +17,7 @@ export function drawMoleculeMinimap(canvas, atoms, options = {}) {
   if (!ctx || atoms.length === 0) return;
 
   const cssW = 148;
-  const cssH = 92;
+  const cssH = 104;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   canvas.width = Math.round(cssW * dpr);
   canvas.height = Math.round(cssH * dpr);
@@ -35,7 +35,7 @@ export function drawMoleculeMinimap(canvas, atoms, options = {}) {
 
   const bondLength = resolveBondLength(atoms, options.bondLength);
   const halfBond = bondLength / 2;
-  const plot = { left: 24, right: 10, top: 16, bottom: 26 };
+  const plot = { left: 24, right: 10, top: 16, bottom: 32 };
   const plotW = cssW - plot.left - plot.right;
   const plotH = cssH - plot.top - plot.bottom;
   const zPad = 0.28;
@@ -64,8 +64,8 @@ export function drawMoleculeMinimap(canvas, atoms, options = {}) {
   drawDensityProfile(ctx, profile, zToX, rhoToY, peak, plot, cssH);
   drawNuclearMarkers(ctx, atoms, bondLength, halfBond, zToX, plot, cssH);
 
-  drawAxisLabel(ctx, "z", zToX(zMax) + 2, cssH - 10);
   drawAxisLabel(ctx, "ρ", 6, plot.top + 4);
+  drawAxisLabel(ctx, "z", zToX(zMax) + 2, cssH - plot.bottom + 12);
 
   const orbital = options.orbital ?? "1σ_g";
   const molecule = options.label ?? "—";
@@ -74,6 +74,7 @@ export function drawMoleculeMinimap(canvas, atoms, options = {}) {
     cssW,
     cssH,
     `${molecule} · ${orbital} · ${bondLength.toFixed(2)} Å`,
+    5,
   );
 }
 
@@ -251,28 +252,7 @@ function drawNuclearMarkers(
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     ctx.fillStyle = "#8a8a8a";
-    ctx.fillText(symbol, x, baseline + 11);
-  }
-
-  if (atoms.length === 2) {
-    const x0 = zToX(-halfBond);
-    const x1 = zToX(halfBond);
-    const y = baseline + 20;
-    ctx.strokeStyle = "rgba(90, 90, 90, 0.7)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(x0, y);
-    ctx.lineTo(x1, y);
-    ctx.moveTo(x0, y - 3);
-    ctx.lineTo(x0, y + 3);
-    ctx.moveTo(x1, y - 3);
-    ctx.lineTo(x1, y + 3);
-    ctx.stroke();
-
-    ctx.font = '500 7px ui-monospace, "SF Mono", Menlo, monospace';
-    ctx.textAlign = "center";
-    ctx.fillStyle = "#666";
-    ctx.fillText(`${bondLength.toFixed(2)} Å`, (x0 + x1) / 2, y + 4);
+    ctx.fillText(symbol, x, baseline + 10);
   }
 }
 
@@ -295,11 +275,12 @@ function drawAxisLabel(ctx, text, x, y) {
  * @param {number} cssW
  * @param {number} cssH
  * @param {string} text
+ * @param {number} [bottomInset]
  */
-function drawFooter(ctx, cssW, cssH, text) {
+function drawFooter(ctx, cssW, cssH, text, bottomInset = 6) {
   ctx.font = '500 8px ui-monospace, "SF Mono", Menlo, monospace';
   ctx.textAlign = "center";
   ctx.textBaseline = "bottom";
   ctx.fillStyle = "#5a5a5a";
-  ctx.fillText(text, cssW / 2, cssH - 7);
+  ctx.fillText(text, cssW / 2, cssH - bottomInset);
 }

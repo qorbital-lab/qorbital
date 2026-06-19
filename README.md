@@ -4,7 +4,7 @@
 
 **Interactive quantum chemistry orbital visualizer — compute molecular ground states with VQE on real quantum hardware and explore 3D electron density isosurfaces in the browser.**
 
-**Live demo:** https://qorbital-lab.github.io/qorbital/
+**Live demo:** https://qorbital.xyz
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CI](https://github.com/qorbital-lab/qorbital/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/qorbital-lab/qorbital/actions/workflows/ci.yml)
@@ -21,13 +21,13 @@
 
 qOrbital is an open-source Python package and interactive web demo that visualizes molecular orbitals computed on real quantum hardware. It lets you see electron trajectories flowing through quantum probability landscapes — something no existing tool offers in a browser-accessible, interactive format.
 
-Users select a molecule (H₂, LiH, HeH⁺, BeH₂), adjust bond geometry with a slider, and watch the orbital shape respond in real time as a 3D isosurface. Behind the scenes, a full quantum chemistry pipeline runs: classical Hartree-Fock via PySCF, Hamiltonian mapping through Qiskit Nature, and ground-state energy estimation using the Variational Quantum Eigensolver (VQE) on IonQ quantum hardware.
+Users select a molecule (H₂, LiH, HeH⁺), adjust bond geometry with a slider, and watch the orbital shape respond in real time as a 3D isosurface. Behind the scenes, a full quantum chemistry pipeline runs: classical Hartree-Fock via PySCF, Hamiltonian mapping through Qiskit Nature, and ground-state energy estimation using the Variational Quantum Eigensolver (VQE) on IonQ quantum hardware.
 
 ## Features
 
 - **Real quantum hardware** — Run VQE circuits on IonQ simulators and trapped-ion devices, not just classical approximations
 - **Interactive 3D visualization** — Explore electron density isosurfaces rendered with Three.js and marching cubes, directly in your browser
-- **Molecule explorer** — Select from supported molecules (H₂, LiH, HeH⁺, BeH₂) and adjust bond geometry to see how orbitals change
+- **Molecule explorer** — Select from supported molecules (H₂, LiH, HeH⁺) and adjust bond geometry to see how orbitals change
 - **Quantum explainer mode** — Step through the VQE pipeline stage by stage to understand what the quantum computer is actually doing
 - **Classical vs. quantum comparison** — Compare orbital outputs from classical Hartree-Fock with VQE results side by side
 - **Python package** — Use `qorbital` as a library in your own quantum chemistry workflows
@@ -259,7 +259,8 @@ qorbital/
 | H₂       | 4      | Hydrogen — the "hello world" of quantum chemistry |
 | LiH      | 12     | Lithium hydride — asymmetric bonding, richer orbital structure |
 | HeH⁺     | 4      | Helium hydride ion — simple but physically interesting |
-| BeH₂     | 14     | Beryllium dihydride — stretch goal, larger qubit count |
+
+**BeH₂ is not supported.** It is defined in the Python molecule registry as a future stretch goal (14 qubits in STO-3G) but has no visualization bundles, PES cache, or web viewer entry yet.
 
 ## Requirements
 

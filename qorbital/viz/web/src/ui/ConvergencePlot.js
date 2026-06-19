@@ -1,3 +1,5 @@
+import { canvasCssSize } from "./canvasSize.js";
+
 /**
  * Draw a compact VQE convergence curve (electronic energy vs iteration).
  */
@@ -16,8 +18,7 @@ export function drawConvergencePlot(canvas, history, options = {}) {
     ? Number(options.measuredEnergy)
     : null;
 
-  const cssW = 220;
-  const cssH = 88;
+  const { cssW, cssH } = canvasCssSize(canvas, 220, 88, 220);
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   canvas.width = Math.round(cssW * dpr);
   canvas.height = Math.round(cssH * dpr);

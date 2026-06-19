@@ -10,6 +10,12 @@
  *   backend: string | null,
  *   shots: number | null,
  *   electronicEnergy: number | null,
+ *   mapper: string | null,
+ *   twoQubitReduction: boolean | null,
+ *   nuclearRepulsionEnergy: number | null,
+ *   energy: number | null,
+ *   timestamp: string | null,
+ *   costCredits: number | null,
  * }} RunLogSummary
  */
 
@@ -43,6 +49,40 @@ export function extractOptimizerHistory(log) {
 }
 
 /**
+ * @param {Record<string, unknown>} log
+ * @param {string} runId
+ * @returns {RunLogSummary}
+ */
+export function parseRunLog(log, runId) {
+  const history = extractOptimizerHistory(log);
+  const electronic = log.electronic_energy;
+  const nuclear = log.nuclear_repulsion_energy;
+  const total = log.energy;
+  const credits = log.cost_credits;
+
+  return {
+    runId: String(log.run_id ?? runId),
+    history,
+    backend: log.backend != null ? String(log.backend) : null,
+    shots: log.shots != null ? Number(log.shots) : null,
+    electronicEnergy: Number.isFinite(Number(electronic))
+      ? Number(electronic)
+      : null,
+    mapper: log.mapper != null ? String(log.mapper) : null,
+    twoQubitReduction:
+      log.two_qubit_reduction != null
+        ? Boolean(log.two_qubit_reduction)
+        : null,
+    nuclearRepulsionEnergy: Number.isFinite(Number(nuclear))
+      ? Number(nuclear)
+      : null,
+    energy: Number.isFinite(Number(total)) ? Number(total) : null,
+    timestamp: log.timestamp != null ? String(log.timestamp) : null,
+    costCredits: Number.isFinite(Number(credits)) ? Number(credits) : null,
+  };
+}
+
+/**
  * @param {string} moleculeDir lowercase molecule folder (e.g. "h2", "lih")
  * @param {string} runId
  * @returns {Promise<RunLogSummary>}
@@ -54,19 +94,9 @@ export async function loadRunLog(moleculeDir, runId) {
     throw new Error(`Failed to load run log (${response.status}): ${url}`);
   }
   const log = /** @type {Record<string, unknown>} */ (await response.json());
-  const history = extractOptimizerHistory(log);
-  if (history.length === 0) {
+  const summary = parseRunLog(log, runId);
+  if (summary.history.length === 0) {
     throw new Error(`Run log has no optimizer history: ${url}`);
   }
-
-  const electronic = log.electronic_energy;
-  return {
-    runId: String(log.run_id ?? runId),
-    history,
-    backend: log.backend != null ? String(log.backend) : null,
-    shots: log.shots != null ? Number(log.shots) : null,
-    electronicEnergy: Number.isFinite(Number(electronic))
-      ? Number(electronic)
-      : null,
-  };
+  return summary;
 }

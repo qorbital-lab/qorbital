@@ -1,19 +1,19 @@
 import { canvasCssSize } from "./canvasSize.js";
 
 /**
- * Draw a compact PES curve with a bond-length marker for the controls panel.
- */
-
-/**
+ * Draw exact PES with a bond-length marker (energy increases upward).
+ *
  * @param {HTMLCanvasElement} canvas
  * @param {Array<{ bond_length: number, energy: number }>} points
  * @param {number} currentBond
+ * @param {{ equilibriumBond?: number }} [refs]
  */
-export function drawPesChart(canvas, points, currentBond) {
+export function drawEnergyPesChart(canvas, points, currentBond, refs = {}) {
   const ctx = canvas.getContext("2d");
   if (!ctx || points.length === 0) return;
 
-  const { cssW, cssH } = canvasCssSize(canvas, 220, 88, 320);
+  const { cssW } = canvasCssSize(canvas, 260, 132, 320);
+  const cssH = Math.max(124, Math.round(cssW * 0.48));
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   canvas.width = Math.round(cssW * dpr);
   canvas.height = Math.round(cssH * dpr);
@@ -40,7 +40,7 @@ export function drawPesChart(canvas, points, currentBond) {
   eMin -= ePad;
   eMax += ePad;
 
-  const plot = { left: 28, right: 10, top: 12, bottom: 22 };
+  const plot = { left: 34, right: 12, top: 18, bottom: 26 };
   const plotW = cssW - plot.left - plot.right;
   const plotH = cssH - plot.top - plot.bottom;
   const baseline = cssH - plot.bottom;
@@ -49,9 +49,9 @@ export function drawPesChart(canvas, points, currentBond) {
   const bondToX = (bond) =>
     plot.left + ((bond - bondMin) / (bondMax - bondMin)) * plotW;
 
-  /** @param {number} energy */
+  /** @param {number} energy — lower (more negative) energy maps to the bottom */
   const energyToY = (energy) =>
-    plot.top + ((energy - eMin) / (eMax - eMin)) * plotH;
+    plot.top + ((eMax - energy) / (eMax - eMin)) * plotH;
 
   ctx.strokeStyle = "rgba(70, 70, 70, 0.45)";
   ctx.lineWidth = 1;
@@ -92,14 +92,30 @@ export function drawPesChart(canvas, points, currentBond) {
   ctx.stroke();
   ctx.setLineDash([]);
 
+  if (refs.equilibriumBond != null && Number.isFinite(refs.equilibriumBond)) {
+    const r0X = bondToX(
+      Math.min(Math.max(refs.equilibriumBond, bondMin), bondMax),
+    );
+    ctx.strokeStyle = "rgba(100, 100, 100, 0.35)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([1, 3]);
+    ctx.beginPath();
+    ctx.moveTo(r0X, plot.top);
+    ctx.lineTo(r0X, baseline);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
   ctx.font = 'italic 500 9px ui-monospace, "SF Mono", Menlo, monospace';
   ctx.fillStyle = "#666";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   ctx.fillText("R (Å)", cssW - plot.right - 24, cssH - 8);
   ctx.save();
-  ctx.translate(8, plot.top + plotH / 2);
+  ctx.translate(10, plot.top + plotH / 2);
   ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
   ctx.fillText("E (Ha)", 0, 0);
   ctx.restore();
 }

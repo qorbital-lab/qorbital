@@ -15,6 +15,7 @@ import { isovalueFromFraction } from "../density/isovalueFromFraction.js";
 import { sampleDensityPoints } from "../density/samplePoints.js";
 import { sampleDiffPoints } from "../density/sampleDiffPoints.js";
 import { loadTrajectoryValues } from "../trajectories/loadTrajectoryValues.js";
+import { subsampleTrajectoryValues } from "../trajectories/subsampleTrajectoryValues.js";
 import { loadEnsemble } from "../trajectories/loadEnsemble.js";
 import {
   defaultMolecule,
@@ -30,12 +31,16 @@ import { drawPesChart } from "../ui/PesChart.js";
 import { drawConvergencePlot } from "../ui/ConvergencePlot.js";
 import { drawColorbar } from "../ui/Legend.js";
 import { loadRunLog } from "../runs/loadRunLog.js";
+import { updatePhysicsPanel } from "../ui/updatePhysicsPanel.js";
 import { DENSITY_COLORMAP, DIFF_COLORMAP, HF_COLORMAP, SPEED_COLORMAP } from "../util/colorMaps.js";
 import { disposeObject } from "../util/dispose.js";
 import { initialState } from "./state.js";
 
 /** Wall-clock seconds for one physical-period loop of trajectory playback. */
 const PLAYBACK_PERIOD_SECONDS = 7;
+
+/** Default Bohmian paths shown for the main bundle (not hardware ensemble replays). */
+const DISPLAY_TRAJECTORY_PARTICLES = 30;
 
 const SCRUBBER_STEPS = 1000;
 
@@ -70,7 +75,7 @@ export class QorbitalApp {
    */
   constructor(elements) {
     this.elements = elements;
-    this.state = { ...initialState, controlsOpen: false };
+    this.state = { ...initialState, controlsOpen: false, physicsPanelOpen: false };
     this.sceneManager = new SceneManager(
       /** @type {HTMLCanvasElement} */ (elements.canvas),
     );
@@ -119,6 +124,10 @@ export class QorbitalApp {
     this._pesPoints = null;
     /** @type {string | null} */
     this._selectedRunId = null;
+    /** @type {{ history: Array<{ iteration: number, energy: number }>, measuredEnergy?: number | null } | null} */
+    this._convergenceDrawCache = null;
+    /** @type {import("../runs/loadRunLog.js").RunLogSummary | null} */
+    this._selectedRunLog = null;
 
     this._deepLink = this._parseDeepLink();
 
@@ -131,8 +140,20 @@ export class QorbitalApp {
 
     this.sceneManager.addTicker((elapsed, delta) => this._onTick(elapsed, delta));
     this.sceneManager.onCameraChange = () => this._writeUrl();
-    this._onLayoutResize = () => this._syncToolbarClearance();
+    this._onLayoutResize = () => {
+      this._syncToolbarClearance();
+      this._syncPanelLayout();
+      this._redrawInsetCharts();
+    };
     window.addEventListener("resize", this._onLayoutResize);
+
+    const toolbar = document.getElementById("hud-toolbar");
+    if (toolbar && "ResizeObserver" in window) {
+      this._toolbarResizeObserver = new ResizeObserver(() => {
+        this._syncToolbarClearance();
+      });
+      this._toolbarResizeObserver.observe(toolbar);
+    }
 
     const entry = this._resolveInitialMolecule();
     this.selectMolecule(entry).then(() => {
@@ -145,11 +166,65 @@ export class QorbitalApp {
     const toolbar = document.getElementById("hud-toolbar");
     if (!toolbar) return;
     const rect = toolbar.getBoundingClientRect();
-    const clearance = Math.ceil(rect.height) + 20;
+    const safeInset = Number.parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue(
+        "env(safe-area-inset-bottom)",
+      ),
+    );
+    const safeBottom = Number.isFinite(safeInset) ? safeInset : 0;
+    const clearance = Math.ceil(rect.height + safeBottom + 14);
     document.documentElement.style.setProperty(
       "--toolbar-offset",
       `${clearance}px`,
     );
+    document.documentElement.classList.toggle("toolbar-multiline", rect.height > 50);
+  }
+
+  /** Offset HUD and toolbar when side drawers are open. */
+  _syncPanelLayout() {
+    const leftPanel = /** @type {HTMLElement} */ (this.elements.controlsPanel);
+    const rightPanel = /** @type {HTMLElement} */ (this.elements.physicsPanel);
+    const leftWidth =
+      this.state.controlsOpen && !leftPanel.hidden
+        ? leftPanel.getBoundingClientRect().width
+        : 0;
+    const rightWidth =
+      this.state.physicsPanelOpen && !rightPanel.hidden
+        ? rightPanel.getBoundingClientRect().width
+        : 0;
+    document.documentElement.style.setProperty("--panel-width", `${leftWidth}px`);
+    document.documentElement.style.setProperty(
+      "--right-panel-width",
+      `${rightWidth}px`,
+    );
+  }
+
+  _redrawPesChart() {
+    if (!this._pesPoints) return;
+    const bond =
+      this.state.previewBond ?? this._currentMolecule?.defaultBond ?? 0;
+    drawPesChart(
+      /** @type {HTMLCanvasElement} */ (this.elements.pesChart),
+      this._pesPoints,
+      bond,
+    );
+  }
+
+  _redrawInsetCharts() {
+    if (this.state.controlsOpen) {
+      this._redrawPesChart();
+    }
+    const inset = /** @type {HTMLElement} */ (this.elements.convergenceInset);
+    if (this._convergenceDrawCache && !inset.hidden) {
+      drawConvergencePlot(
+        /** @type {HTMLCanvasElement} */ (this.elements.convergenceChart),
+        this._convergenceDrawCache.history,
+        { measuredEnergy: this._convergenceDrawCache.measuredEnergy },
+      );
+    }
+    if (this.state.physicsPanelOpen && this._currentBundle) {
+      this._refreshPhysicsPanel(this._currentBundle);
+    }
   }
 
   /**
@@ -235,11 +310,15 @@ export class QorbitalApp {
         playState = "scrubbing";
       }
       const dynamicsSuffix = dynamicsNote ? ` · ${dynamicsNote}` : "";
-      this.elements.hudPhase.textContent =
+      const text =
         `t ${tNow.toFixed(1)}/${this._trajPeriod.toFixed(1)} a.u. · ${playState} · ${this._hudPhaseBase}${dynamicsSuffix}`;
+      this.elements.hudPhase.textContent = text;
+      this.elements.hudPhase.title = text;
     } else {
       const dynamicsSuffix = dynamicsNote ? ` · ${dynamicsNote}` : "";
-      this.elements.hudPhase.textContent = `${this._hudPhaseBase}${dynamicsSuffix}`;
+      const text = `${this._hudPhaseBase}${dynamicsSuffix}`;
+      this.elements.hudPhase.textContent = text;
+      this.elements.hudPhase.title = text;
     }
   }
 
@@ -303,7 +382,7 @@ export class QorbitalApp {
       this.elements.isovalueReadout.textContent = `${actualPct}% · ρ ${rho.toFixed(3)} a.u.`;
     }
     if (this.elements.metaIsovalue) {
-      this.elements.metaIsovalue.textContent = `${actualPct}% enclosed · ρ ${rho.toFixed(3)} a.u.`;
+      this.elements.metaIsovalue.textContent = `${actualPct}% · ${rho.toFixed(3)}`;
     }
     if (this.elements.metaElectronCount) {
       const density = this._currentBundle
@@ -564,6 +643,8 @@ export class QorbitalApp {
       this.state.showEnsemble && this.state.ensembleHardwareOnly,
     );
     active(this._toolbar.comparison, this.state.showComparison);
+    active(this._toolbar.controls, this.state.controlsOpen);
+    active(this._toolbar.data, this.state.physicsPanelOpen);
     active(this._toolbar.tour, this._tourActive);
     if (this._toolbar.play) {
       this._toolbar.play.dataset.active = this.state.trajectoryPlaying
@@ -645,6 +726,8 @@ export class QorbitalApp {
       comparison: byId("btn-comparison"),
       play: byId("btn-play"),
       tour: byId("btn-tour"),
+      controls: byId("btn-controls"),
+      data: byId("btn-data"),
     };
     /** @param {string} id @param {() => void} fn */
     const onClick = (id, fn) => {
@@ -656,6 +739,8 @@ export class QorbitalApp {
         });
       }
     };
+    onClick("btn-molecule-prev", () => this._cycleMolecule(-1));
+    onClick("btn-molecule-next", () => this._cycleMolecule(1));
     onClick("btn-cloud", () =>
       this._setLayerState("showCloud", !this.state.showCloud),
     );
@@ -674,6 +759,8 @@ export class QorbitalApp {
     onClick("btn-preset-copenhagen", () => this._applyPreset("copenhagen"));
     onClick("btn-preset-bohmian", () => this._applyPreset("bohmian"));
     onClick("btn-preset-ensemble", () => this._applyPreset("ensemble"));
+    onClick("btn-controls", () => this.toggleControls());
+    onClick("btn-data", () => this.togglePhysicsPanel());
     onClick("btn-tour", () => this._setTour(!this._tourActive));
     onClick("btn-reset", () => {
       this._setTour(false);
@@ -798,22 +885,92 @@ export class QorbitalApp {
       const runId = /** @type {HTMLSelectElement} */ (
         this.elements.runSelect
       ).value;
-      if (runId && this._currentMolecule) {
-        this._selectedRunId = runId;
-        this._loadAndDrawConvergence(this._currentMolecule, runId);
-        // Switch the displayed trajectory + HUD metadata to the selected run.
-        if (this._currentBundle) {
-          this.renderBundle(this._currentBundle);
-        }
+      if (runId) {
+        this._selectConvergenceRun(runId);
       }
     });
   }
 
+  /**
+   * @returns {string[]}
+   */
+  _convergenceRunIds() {
+    const select = /** @type {HTMLSelectElement} */ (this.elements.runSelect);
+    if (!select || select.options.length === 0) {
+      return [];
+    }
+    return Array.from(select.options)
+      .map((option) => option.value)
+      .filter(Boolean);
+  }
+
+  /**
+   * @param {string} runId
+   */
+  _selectConvergenceRun(runId) {
+    if (!runId || !this._currentMolecule) {
+      return;
+    }
+    const select = /** @type {HTMLSelectElement} */ (this.elements.runSelect);
+    select.value = runId;
+    this._selectedRunId = runId;
+    this._loadAndDrawConvergence(this._currentMolecule, runId);
+    if (this._currentBundle) {
+      this.renderBundle(this._currentBundle);
+    }
+  }
+
+  /**
+   * @param {number} delta +1 for next, −1 for previous
+   */
+  _cycleConvergenceRun(delta) {
+    const ids = this._convergenceRunIds();
+    if (ids.length < 2) {
+      return;
+    }
+    const current = this._selectedRunId ?? ids[0];
+    const index = ids.indexOf(current);
+    const base = index < 0 ? 0 : index;
+    const next = (base + delta + ids.length) % ids.length;
+    this._selectConvergenceRun(ids[next]);
+  }
+
+  /**
+   * @param {number} delta +1 for next, −1 for previous
+   */
+  _cycleMolecule(delta) {
+    if (!this._currentMolecule) return;
+    const index = MOLECULE_CATALOG.findIndex(
+      (entry) => entry.id === this._currentMolecule.id,
+    );
+    if (index < 0) return;
+    const nextIndex =
+      (index + delta + MOLECULE_CATALOG.length) % MOLECULE_CATALOG.length;
+    this.selectMolecule(MOLECULE_CATALOG[nextIndex]);
+  }
+
+  _syncMoleculeSwitcherUi() {
+    const label = document.getElementById("molecule-toolbar-label");
+    if (label) {
+      label.textContent = this._currentMolecule?.label ?? "—";
+    }
+  }
+
   _wireKeyboardShortcuts() {
     window.addEventListener("keydown", (event) => {
+      const target = /** @type {HTMLElement} */ (event.target);
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement
+      ) {
+        return;
+      }
       const key = event.key.toLowerCase();
       if (key === "h") {
         this.toggleControls();
+      } else if (key === "p") {
+        this.togglePhysicsPanel();
       } else if (key === "c") {
         this._setLayerState("showCloud", !this.state.showCloud);
       } else if (key === "s") {
@@ -829,6 +986,16 @@ export class QorbitalApp {
       } else if (key === " ") {
         event.preventDefault();
         this._setPlaying(!this.state.trajectoryPlaying);
+      } else if (event.key === "[") {
+        this._cycleMolecule(-1);
+      } else if (event.key === "]") {
+        this._cycleMolecule(1);
+      } else if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        this._cycleConvergenceRun(-1);
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        this._cycleConvergenceRun(1);
       }
     });
   }
@@ -911,6 +1078,7 @@ export class QorbitalApp {
       this._deepLinkApplied = true;
     }
     this._writeUrl();
+    this._syncMoleculeSwitcherUi();
   }
 
   /**
@@ -943,6 +1111,55 @@ export class QorbitalApp {
     this.state.controlsOpen = !this.state.controlsOpen;
     /** @type {HTMLElement} */ (this.elements.controlsPanel).hidden =
       !this.state.controlsOpen;
+    this._syncPanelLayout();
+    this._syncLayerUi();
+    requestAnimationFrame(() => {
+      this._syncPanelLayout();
+      this._syncToolbarClearance();
+      this._redrawInsetCharts();
+    });
+  }
+
+  togglePhysicsPanel() {
+    this.state.physicsPanelOpen = !this.state.physicsPanelOpen;
+    /** @type {HTMLElement} */ (this.elements.physicsPanel).hidden =
+      !this.state.physicsPanelOpen;
+    this._syncPanelLayout();
+    this._syncLayerUi();
+    requestAnimationFrame(() => {
+      this._syncPanelLayout();
+      this._syncToolbarClearance();
+      this._redrawInsetCharts();
+      if (this.state.physicsPanelOpen && this._currentBundle) {
+        this._refreshPhysicsPanel(this._currentBundle);
+      }
+    });
+  }
+
+  /**
+   * @param {Record<string, unknown>} bundle
+   */
+  _refreshPhysicsPanel(bundle) {
+    const mol = /** @type {Record<string, unknown>} */ (bundle.molecule);
+    const equilibriumBond = Number(mol.bond_length_angstrom ?? 0);
+    const previewBond = this.state.previewBond ?? equilibriumBond;
+    const runMember = this._selectedRunMember();
+
+    updatePhysicsPanel(bundle, {
+      pesPoints: this._pesPoints,
+      previewBond,
+      equilibriumBond,
+      runMember: runMember
+        ? /** @type {Record<string, unknown>} */ (runMember)
+        : null,
+      runLog: this._selectedRunLog,
+      ensembleMembers: this._ensemble?.members ?? [],
+      isHardwareBackend: QorbitalApp.isHardwareBackend,
+      pesChart: /** @type {HTMLCanvasElement} */ (this.elements.physicsPesChart),
+      energyLadder: /** @type {HTMLCanvasElement} */ (
+        this.elements.physicsEnergyLadder
+      ),
+    });
   }
 
   _rebuildEnsembleUncertainty() {
@@ -985,6 +1202,8 @@ export class QorbitalApp {
     if (members.length === 0) {
       inset.hidden = true;
       this._selectedRunId = null;
+      this._selectedRunLog = null;
+      this._convergenceDrawCache = null;
       return;
     }
 
@@ -1044,9 +1263,19 @@ export class QorbitalApp {
       drawConvergencePlot(canvas, summary.history, {
         measuredEnergy: summary.electronicEnergy,
       });
+      this._convergenceDrawCache = {
+        history: summary.history,
+        measuredEnergy: summary.electronicEnergy,
+      };
+      this._selectedRunLog = summary;
       inset.hidden = false;
+      if (this._currentBundle) {
+        this._refreshPhysicsPanel(this._currentBundle);
+      }
     } catch (err) {
       console.warn("Run log load failed:", err);
+      this._convergenceDrawCache = null;
+      this._selectedRunLog = null;
       inset.hidden = true;
     }
   }
@@ -1133,7 +1362,13 @@ export class QorbitalApp {
     }
 
     this.elements.metaHf.textContent = refs?.hf != null ? this._fmtEnergy(refs.hf) : "—";
-    this.elements.metaFci.textContent = refs?.fci != null ? this._fmtEnergy(refs.fci) : "—";
+    if (this._pesPoints && this._pesPoints.length > 0) {
+      const exactAtR0 = interpolateEnergy(this._pesPoints, equilibriumBond);
+      this.elements.metaFci.textContent = this._fmtEnergy(exactAtR0);
+    } else {
+      this.elements.metaFci.textContent =
+        refs?.fci != null ? this._fmtEnergy(refs.fci) : "—";
+    }
     this._updateIsovalueUi();
 
     this.elements.moleculeLabel.textContent = label;
@@ -1155,19 +1390,32 @@ export class QorbitalApp {
 
     const bondDrift = Math.abs(previewBond - equilibriumBond) > 0.01;
     const pesNote = bondDrift
-      ? ` ρ(r) from equilibrium VQE bundle at R₀=${equilibriumBond.toFixed(2)} Å; energy interpolated from PES.`
+      ? `ρ(r) from equilibrium VQE bundle at R₀=${equilibriumBond.toFixed(2)} Å; energy interpolated from PES.`
       : "";
 
     this.elements.hudContext.textContent =
       `${this.state.particleCount.toLocaleString()} ρ samples · run ${runId}` +
       (this.state.showEnsemble && this._ensembleCount > 0
         ? ` · ${this._ensembleCount} IonQ runs overlaid`
-        : "") +
-      pesNote;
+        : "");
+
+    const contextNote = /** @type {HTMLElement | undefined} */ (
+      this.elements.hudContextNote
+    );
+    if (contextNote) {
+      if (pesNote) {
+        contextNote.textContent = pesNote;
+        contextNote.hidden = false;
+      } else {
+        contextNote.textContent = "";
+        contextNote.hidden = true;
+      }
+    }
 
     this._updateBackendBadge(backend);
     this._updateLegend();
     this._refreshSurfaceAvailability(density);
+    this._refreshPhysicsPanel(bundle);
   }
 
   /**
@@ -1179,18 +1427,19 @@ export class QorbitalApp {
   _updateBackendBadge(backend) {
     const badge = this.elements.backendBadge;
     const members = this._ensembleMembers();
+    let text = "—";
     if (this.state.showEnsemble && members.length) {
       const tag = this.state.ensembleHardwareOnly
         ? "forte · HW only"
         : String(members[0].backend ?? "ionq").replace(/_/g, " ");
       const shots =
         members[0].shots != null ? ` · ${members[0].shots} shots` : "";
-      badge.textContent = `IonQ · ${tag}${shots} · ×${members.length} runs`;
+      text = `IonQ · ${tag}${shots} · ×${members.length} runs`;
     } else if (backend) {
-      badge.textContent = `${backend.provider} / ${backend.name}`;
-    } else {
-      badge.textContent = "—";
+      text = `${backend.provider} / ${backend.name}`;
     }
+    badge.textContent = text;
+    badge.title = text === "—" ? "" : text;
   }
 
   _updateLegend() {
@@ -1438,12 +1687,23 @@ export class QorbitalApp {
       const member = this._selectedRunMember();
       const values = member ? member.values : this._trajectoryValues;
       if (values) {
-        const particles = member
-          ? member.particles
-          : Number(trajectories.particles);
         const steps = member ? member.steps : Number(trajectories.steps);
         const dt = member ? member.dt : Number(trajectories.dt ?? 0.1);
-        const paths = createTrajectoryPaths(values, particles, steps, dt);
+        let particles = member
+          ? member.particles
+          : Number(trajectories.particles);
+        let displayValues = values;
+        if (!member) {
+          const subsampled = subsampleTrajectoryValues(
+            values,
+            particles,
+            steps,
+            DISPLAY_TRAJECTORY_PARTICLES,
+          );
+          displayValues = subsampled.values;
+          particles = subsampled.particles;
+        }
+        const paths = createTrajectoryPaths(displayValues, particles, steps, dt);
         this._animatedGroups.push(paths);
         this._speedPeak = Math.max(
           this._speedPeak,

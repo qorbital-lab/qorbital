@@ -67,7 +67,7 @@
               <canvas id="legend-speed" class="legend-bar"></canvas>
               <span class="legend-max" id="legend-speed-max">—</span>
             </div>
-            <p class="legend-scale" id="legend-scale">grid 0.25 Å / div</p>
+            <p class="legend-scale" id="legend-scale">scene grid · 0.25 Å / div</p>
           </div>
         </header>
 
@@ -88,51 +88,142 @@
 
         <footer class="hud hud-bl">
           <p id="hud-context">—</p>
+          <p id="hud-context-note" class="hud-context-note" hidden></p>
         </footer>
 
         <footer class="hud hud-br">
           <p id="hud-attribution" class="attribution">
             This effort is supported via compute credits from Qollab and IonQ.
           </p>
-          <p id="hud-shortcuts">
-            H: controls · C: cloud · S: surface · T: trajectories · E: ensemble · F: HF · D: Δρ · space: play/pause · drag: orbit · scroll: zoom
+          <p id="hud-shortcuts" class="hud-shortcuts-full">
+            [ / ]: molecule · ← / →: VQE run · H: controls · P: data · C: cloud · S: surface · T: trajectories · E: ensemble · F: HF · D: Δρ · space: play/pause · drag: orbit · scroll: zoom
+          </p>
+          <p id="hud-shortcuts-abbr" class="hud-shortcuts-abbr">
+            [ ] mol · ←/→ run · H ctrl · P data · C/S/T/E/F/D · space play<br />
+            drag orbit · scroll zoom
           </p>
         </footer>
 
         <nav class="hud toolbar" id="hud-toolbar" aria-label="Viewer controls">
-          <div class="toolbar-group">
-            <button class="tbtn" id="btn-cloud" type="button">Cloud</button>
-            <button class="tbtn" id="btn-surface" type="button">Surface</button>
-            <button class="tbtn" id="btn-traj" type="button">Trajectories</button>
-            <button class="tbtn" id="btn-ensemble" type="button">Ensemble</button>
-            <button class="tbtn" id="btn-ensemble-hw" type="button">HW ensemble</button>
-            <button class="tbtn" id="btn-comparison" type="button">HF</button>
-            <button class="tbtn" id="btn-play" type="button">Pause</button>
-            <label class="toolbar-scrub" for="trajectory-scrubber">
-              <span class="sr-only">Trajectory timeline</span>
-              <input
-                id="trajectory-scrubber"
-                type="range"
-                min="0"
-                max="1000"
-                step="1"
-                value="0"
-                aria-label="Trajectory timeline"
-                disabled
-              />
-            </label>
-          </div>
-          <span class="toolbar-sep"></span>
-          <div class="toolbar-group">
-            <button class="tbtn" id="btn-preset-copenhagen" type="button">Copenhagen</button>
-            <button class="tbtn" id="btn-preset-bohmian" type="button">Bohmian</button>
-            <button class="tbtn" id="btn-preset-ensemble" type="button">Noise ensemble</button>
-          </div>
-          <span class="toolbar-sep"></span>
-          <div class="toolbar-group">
-            <button class="tbtn" id="btn-tour" type="button">Tour</button>
-            <button class="tbtn" id="btn-reset" type="button">Reset</button>
-            <button class="tbtn" id="btn-save" type="button">Save PNG</button>
+          <div class="toolbar-inner">
+            <div class="toolbar-group molecule-switcher" role="group" aria-label="Molecule">
+              <button
+                class="tbtn tbtn-icon"
+                id="btn-molecule-prev"
+                type="button"
+                aria-label="Previous molecule"
+                title="Previous molecule ([)"
+              >
+                ‹
+              </button>
+              <span class="molecule-switcher-label" id="molecule-toolbar-label" aria-live="polite">
+                —
+              </span>
+              <button
+                class="tbtn tbtn-icon"
+                id="btn-molecule-next"
+                type="button"
+                aria-label="Next molecule"
+                title="Next molecule (])"
+              >
+                ›
+              </button>
+            </div>
+            <span class="toolbar-sep" aria-hidden="true"></span>
+            <div class="toolbar-group toolbar-layers">
+              <button class="tbtn" id="btn-cloud" type="button" title="Toggle density cloud (C)">
+                <span class="tbtn-long">Cloud</span><span class="tbtn-short">Cld</span>
+              </button>
+              <button class="tbtn" id="btn-surface" type="button" title="Toggle isosurface (S)">
+                <span class="tbtn-long">Surface</span><span class="tbtn-short">Surf</span>
+              </button>
+              <button class="tbtn" id="btn-traj" type="button" title="Toggle trajectories (T)">
+                <span class="tbtn-long">Trajectories</span><span class="tbtn-short">Traj</span>
+              </button>
+              <button class="tbtn" id="btn-ensemble" type="button" title="Toggle trajectory ensemble (E)">
+                <span class="tbtn-long">Ensemble</span><span class="tbtn-short">Ens</span>
+              </button>
+              <button class="tbtn" id="btn-ensemble-hw" type="button" title="Hardware-only ensemble">
+                <span class="tbtn-long">HW ensemble</span><span class="tbtn-short">HW</span>
+              </button>
+              <button class="tbtn" id="btn-comparison" type="button" title="Hartree–Fock comparison (F)">
+                HF
+              </button>
+              <button class="tbtn" id="btn-play" type="button" title="Play/pause trajectories (space)">
+                Pause
+              </button>
+              <label class="toolbar-scrub" for="trajectory-scrubber">
+                <span class="sr-only">Trajectory timeline</span>
+                <input
+                  id="trajectory-scrubber"
+                  type="range"
+                  min="0"
+                  max="1000"
+                  step="1"
+                  value="0"
+                  aria-label="Trajectory timeline"
+                  disabled
+                />
+              </label>
+            </div>
+            <span class="toolbar-sep" aria-hidden="true"></span>
+            <div class="toolbar-group toolbar-presets">
+              <button
+                class="tbtn"
+                id="btn-preset-copenhagen"
+                type="button"
+                title="Static ρ isosurface"
+              >
+                <span class="tbtn-long">Copenhagen</span><span class="tbtn-short">Cph</span>
+              </button>
+              <button
+                class="tbtn"
+                id="btn-preset-bohmian"
+                type="button"
+                title="Animated Bohmian trajectories"
+              >
+                <span class="tbtn-long">Bohmian</span><span class="tbtn-short">Bohm</span>
+              </button>
+              <button
+                class="tbtn"
+                id="btn-preset-ensemble"
+                type="button"
+                title="Hardware uncertainty overlay"
+              >
+                <span class="tbtn-long">Noise ensemble</span><span class="tbtn-short">Noise</span>
+              </button>
+            </div>
+            <span class="toolbar-sep" aria-hidden="true"></span>
+            <div class="toolbar-group toolbar-panels">
+              <button
+                class="tbtn"
+                id="btn-controls"
+                type="button"
+                title="Toggle controls panel (H)"
+              >
+                <span class="tbtn-long">Controls</span><span class="tbtn-short">Ctrl</span>
+              </button>
+              <button
+                class="tbtn"
+                id="btn-data"
+                type="button"
+                title="Toggle data panel (P)"
+              >
+                Data
+              </button>
+            </div>
+            <span class="toolbar-sep" aria-hidden="true"></span>
+            <div class="toolbar-group toolbar-utils">
+              <button class="tbtn tbtn-ghost" id="btn-tour" type="button" title="Guided tour">
+                Tour
+              </button>
+              <button class="tbtn tbtn-ghost" id="btn-reset" type="button" title="Reset camera">
+                Reset
+              </button>
+              <button class="tbtn tbtn-ghost" id="btn-save" type="button" title="Save PNG screenshot">
+                PNG
+              </button>
+            </div>
           </div>
         </nav>
 
@@ -205,6 +296,70 @@
             <p class="readout" id="bond-readout">0.74 Å</p>
             <canvas id="pes-chart" aria-label="Potential energy surface"></canvas>
             <p class="hint">Density at equilibrium bundle; energy from cached PES</p>
+          </section>
+        </aside>
+
+        <aside id="physics-panel" class="physics-panel" hidden>
+          <h2>Data</h2>
+
+          <section class="panel">
+            <h3>Energy @ R</h3>
+            <dl class="physics-table" id="physics-energy-table"></dl>
+            <p class="hint" id="physics-energy-note">—</p>
+          </section>
+
+          <section class="panel">
+            <h3>Energy ladder</h3>
+            <div class="physics-chart-wrap">
+              <canvas
+                id="physics-energy-ladder"
+                aria-label="HF, exact, and VQE energies at the current geometry"
+              ></canvas>
+            </div>
+            <p class="hint" id="physics-ladder-note">sto-3g · mHa gaps between levels</p>
+          </section>
+
+          <section class="panel">
+            <h3>PES</h3>
+            <div class="physics-chart-wrap">
+              <canvas
+                id="physics-pes-chart"
+                aria-label="Exact potential energy surface"
+              ></canvas>
+            </div>
+            <p class="hint">exact diag · sto-3g · bond marker tracks preview R</p>
+          </section>
+
+          <section class="panel" id="physics-run-section" hidden>
+            <h3>Selected run</h3>
+            <dl class="physics-table" id="physics-run-provenance"></dl>
+          </section>
+
+          <section class="panel">
+            <h3>Dynamics</h3>
+            <dl class="physics-table" id="physics-dynamics"></dl>
+            <p class="hint" id="physics-dynamics-note"></p>
+          </section>
+
+          <section class="panel" id="physics-hardware-section" hidden>
+            <h3>Hardware campaign</h3>
+            <table class="physics-stats-table" id="physics-hardware-table">
+              <thead>
+                <tr>
+                  <th>Backend</th>
+                  <th>Runs</th>
+                  <th>E mean</th>
+                  <th>E std</th>
+                  <th>Δ mHa</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </section>
+
+          <section class="panel">
+            <h3>Grid</h3>
+            <dl class="physics-table" id="physics-grid"></dl>
           </section>
         </aside>
       </main>
