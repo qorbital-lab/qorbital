@@ -1,38 +1,64 @@
 import * as THREE from "three";
-import { DENSITY_COLORMAP, sampleColormap } from "../util/colorMaps.js";
+import {
+  DENSITY_COLORMAP,
+  sampleColormap,
+} from "../util/colorMaps.js";
 import { getDiscTexture } from "../util/sprites.js";
 
 /**
  * Build a soft probability-cloud point sprite from sampled density points.
  *
- * Points are colored with a perceptually-uniform colormap (the scientific
- * standard), drawn as soft round sprites, and additively blended so dense
- * regions glow. Scene fog provides the depth cue that reads the spray as a
- * 3D volume rather than a flat sheet.
- *
  * @param {Float32Array} positions length 3N
  * @param {Float32Array} densities length N
+ * @param {{
+ *   colormap?: string,
+ *   opacity?: number,
+ *   gamma?: number,
+ *   signed?: boolean,
+ * }} [options]
  * @returns {THREE.Points}
  */
-export function createDensityCloud(positions, densities) {
+export function createDensityCloud(positions, densities, options = {}) {
+  const {
+    colormap = DENSITY_COLORMAP,
+    opacity = 0.8,
+    gamma = 0.55,
+    signed = false,
+  } = options;
+
   const count = densities.length;
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
 
   const colors = new Float32Array(count * 3);
-  let maxRho = 0;
-  for (let i = 0; i < count; i += 1) {
-    maxRho = Math.max(maxRho, densities[i]);
-  }
-  const invPeak = maxRho > 0 ? 1 / maxRho : 1;
+  let scale = 0;
 
-  for (let i = 0; i < count; i += 1) {
-    const t = Math.pow(densities[i] * invPeak, 0.55);
-    const [r, g, b] = sampleColormap(DENSITY_COLORMAP, t);
-    colors[i * 3] = r;
-    colors[i * 3 + 1] = g;
-    colors[i * 3 + 2] = b;
+  if (signed) {
+    for (let i = 0; i < count; i += 1) {
+      scale = Math.max(scale, Math.abs(densities[i]));
+    }
+    const invScale = scale > 0 ? 1 / scale : 1;
+    for (let i = 0; i < count; i += 1) {
+      const t = (densities[i] * invScale + 1) * 0.5;
+      const [r, g, b] = sampleColormap(colormap, t);
+      colors[i * 3] = r;
+      colors[i * 3 + 1] = g;
+      colors[i * 3 + 2] = b;
+    }
+  } else {
+    for (let i = 0; i < count; i += 1) {
+      scale = Math.max(scale, densities[i]);
+    }
+    const invPeak = scale > 0 ? 1 / scale : 1;
+    for (let i = 0; i < count; i += 1) {
+      const t = Math.pow(densities[i] * invPeak, gamma);
+      const [r, g, b] = sampleColormap(colormap, t);
+      colors[i * 3] = r;
+      colors[i * 3 + 1] = g;
+      colors[i * 3 + 2] = b;
+    }
   }
+
   geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
 
   const material = new THREE.PointsMaterial({
@@ -41,7 +67,7 @@ export function createDensityCloud(positions, densities) {
     sizeAttenuation: true,
     vertexColors: true,
     transparent: true,
-    opacity: 0.8,
+    opacity,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
     fog: true,

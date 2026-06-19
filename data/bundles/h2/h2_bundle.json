@@ -63,9 +63,31 @@
     "path_layout": "particle-major",
     "color_by": "speed"
   },
+  "comparison": {
+    "kind": "grid",
+    "origin": [
+      -3.0,
+      -3.0,
+      -3.0
+    ],
+    "spacing": [
+      0.20689655172413793,
+      0.20689655172413793,
+      0.23224138113389547
+    ],
+    "shape": [
+      30,
+      30,
+      30
+    ],
+    "values": "h2_comparison.bin",
+    "value_encoding": "float32-le",
+    "units": "electron_density_au",
+    "default_isovalue": 0.02
+  },
   "provenance": {
-    "run_id": "h2_20260617_154752",
-    "created_at": "2026-06-17T15:47:52Z",
+    "run_id": "h2_20260619_014421",
+    "created_at": "2026-06-19T01:44:21Z",
     "git_sha": ""
   }
 }

@@ -94,7 +94,7 @@
             This effort is supported via compute credits from Qollab and IonQ.
           </p>
           <p id="hud-shortcuts">
-            H: controls · C: cloud · S: surface · T: trajectories · E: ensemble · space: play/pause · drag: orbit · scroll: zoom
+            H: controls · C: cloud · S: surface · T: trajectories · E: ensemble · F: HF · D: Δρ · space: play/pause · drag: orbit · scroll: zoom
           </p>
         </footer>
 
@@ -104,6 +104,7 @@
             <button class="tbtn" id="btn-surface" type="button">Surface</button>
             <button class="tbtn" id="btn-traj" type="button">Trajectories</button>
             <button class="tbtn" id="btn-ensemble" type="button">Ensemble</button>
+            <button class="tbtn" id="btn-comparison" type="button">HF</button>
             <button class="tbtn" id="btn-play" type="button">Pause</button>
             <label class="toolbar-scrub" for="trajectory-scrubber">
               <span class="sr-only">Trajectory timeline</span>
@@ -174,6 +175,15 @@
               Hardware-noise ensemble
             </label>
             <p id="ensemble-hint" class="hint">Overlay of IonQ VQE runs — noise cloud</p>
+            <label class="layer-toggle">
+              <input id="toggle-comparison" type="checkbox" />
+              HF reference density (overlay)
+            </label>
+            <label class="layer-toggle">
+              <input id="toggle-comparison-diff" type="checkbox" />
+              Δρ (VQE − HF)
+            </label>
+            <p id="comparison-hint" class="hint">Classical Hartree–Fock comparison grid</p>
           </section>
 
           <section class="panel">

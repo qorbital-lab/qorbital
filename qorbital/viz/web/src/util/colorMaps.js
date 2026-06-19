@@ -59,6 +59,15 @@ const COLORMAPS = {
     [0.964, 0.843, 0.273],
     [0.988, 0.998, 0.645],
   ],
+  diff: [
+    [0.122, 0.467, 0.706],
+    [0.259, 0.572, 0.776],
+    [0.596, 0.757, 0.851],
+    [0.843, 0.843, 0.843],
+    [0.992, 0.749, 0.435],
+    [0.843, 0.404, 0.031],
+    [0.647, 0.0, 0.149],
+  ],
 };
 
 /**
@@ -97,4 +106,6 @@ export function colormapCss(name, t) {
 
 /** Field → colormap assignment, shared across geometry + legends. */
 export const DENSITY_COLORMAP = "viridis";
+export const HF_COLORMAP = "inferno";
+export const DIFF_COLORMAP = "diff";
 export const SPEED_COLORMAP = "inferno";

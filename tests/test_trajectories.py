@@ -59,6 +59,24 @@ class TestTrajectoryExport:
         assert bundle.trajectories is not None
         assert bundle.trajectories.particles == 3
 
+    def test_bundle_includes_hf_comparison(self, tmp_path, h2_density):
+        traj = np.zeros((3, 5, 3))
+        _, json_path = build_molecule_bundle(
+            "H2",
+            "H₂",
+            bond_length=0.735,
+            density=h2_density,
+            trajectories=traj,
+            output_dir=tmp_path,
+        )
+        bundle = load_bundle(json_path)
+        assert bundle.comparison is not None
+        assert bundle.comparison.kind == "grid"
+        assert (tmp_path / "h2_comparison.bin").exists()
+        assert bundle.comparison.shape == list(h2_density.grid_shape)
+        assert bundle.comparison.origin == list(h2_density.origin)
+        assert bundle.comparison.spacing == list(h2_density.spacing)
+
     def test_sidecar_without_superposition_unchanged(self, tmp_path):
         traj = np.zeros((3, 5, 3))
         traj_set = trajectories_to_sidecar(traj, tmp_path, "plain.bin", dt=0.1)

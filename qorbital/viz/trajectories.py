@@ -12,6 +12,7 @@ from numpy.typing import NDArray
 
 from qorbital.bohmian.velocity import superposition_period
 from qorbital.chemistry.density import ElectronDensityGrid
+from qorbital.chemistry.hartree_fock import compute_hf_density
 from qorbital.viz.schema import (
     SCHEMA_VERSION,
     AtomSpec,
@@ -174,6 +175,17 @@ def build_molecule_bundle(
     density_sidecar = f"{molecule_id.lower()}_density.bin"
     density_grid = density_grid_to_sidecar(density, output_dir, density_sidecar)
 
+    hf_density = compute_hf_density(
+        molecule_id,
+        bond_length=bond_length,
+        grid_points=density.grid_shape[0],
+        padding=3.0,
+    )
+    comparison_sidecar = f"{molecule_id.lower()}_comparison.bin"
+    comparison_grid = density_grid_to_sidecar(
+        hf_density, output_dir, comparison_sidecar
+    )
+
     traj_set = None
     if trajectories is not None:
         traj_sidecar = f"{molecule_id.lower()}_trajectories.bin"
@@ -216,6 +228,7 @@ def build_molecule_bundle(
         energy_hartree=energy_hartree,
         reference_energies=reference_energies,
         trajectories=traj_set,
+        comparison=comparison_grid,
         provenance=Provenance(
             run_id=f"{molecule_id.lower()}_{datetime.now(tz=UTC).strftime('%Y%m%d_%H%M%S')}",
             created_at=datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),

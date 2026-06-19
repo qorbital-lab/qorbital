@@ -8,6 +8,8 @@ export const initialState = {
   showAtoms: true,
   showTrajectories: true,
   showEnsemble: false,
+  showComparison: false,
+  comparisonDiff: false,
   trajectoryPlaying: true,
   particleCount: 10000,
   previewBond: null,

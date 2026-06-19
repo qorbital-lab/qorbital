@@ -107,6 +107,7 @@ Dependencies are noted per segment. Within a phase, segments can mostly run in p
 **Acceptance:** renders a real H₂ run's convergence; updates when molecule/run changes.
 
 ### [F4] Classical (HF vs VQE) density overlay
+**Status:** DONE
 **Scope:** The schema already has a `comparison` field (`schema.py:~87`) that's never populated. Populate it in `build_molecule_bundle` from `compute_hf_density` (`qorbital/chemistry/hartree_fock.py`), and add a `showComparison` layer toggle + diff/overlay render in the viewer. Today only HF *energy* is shown as text (`QorbitalApp.js:647`).
 **Acceptance:** toggle shows HF density alongside/diffed-against VQE density for H₂ and LiH.
 

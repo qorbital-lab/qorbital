@@ -9,6 +9,7 @@ import { scaleMoleculeBond } from "../geometry/scaleMoleculeBond.js";
 import { createDensityField } from "../density/densityField.js";
 import { loadGridValues } from "../density/loadGridValues.js";
 import { sampleDensityPoints } from "../density/samplePoints.js";
+import { sampleDiffPoints } from "../density/sampleDiffPoints.js";
 import { loadTrajectoryValues } from "../trajectories/loadTrajectoryValues.js";
 import { loadEnsemble } from "../trajectories/loadEnsemble.js";
 import {
@@ -25,7 +26,7 @@ import { drawPesChart } from "../ui/PesChart.js";
 import { drawConvergencePlot } from "../ui/ConvergencePlot.js";
 import { drawColorbar } from "../ui/Legend.js";
 import { loadRunLog } from "../runs/loadRunLog.js";
-import { DENSITY_COLORMAP, SPEED_COLORMAP } from "../util/colorMaps.js";
+import { DENSITY_COLORMAP, DIFF_COLORMAP, HF_COLORMAP, SPEED_COLORMAP } from "../util/colorMaps.js";
 import { disposeObject } from "../util/dispose.js";
 import { initialState } from "./state.js";
 
@@ -72,6 +73,7 @@ export class QorbitalApp {
     this._contentGroup = new THREE.Group();
     this._currentBundle = null;
     this._gridValues = null;
+    this._comparisonGridValues = null;
     this._trajectoryValues = null;
     /** @type {Array<THREE.Group>} */
     this._animatedGroups = [];
@@ -158,6 +160,8 @@ export class QorbitalApp {
       this.state.showAtoms = layers.includes("a");
       this.state.showTrajectories = layers.includes("t");
       this.state.showEnsemble = layers.includes("e");
+      this.state.showComparison = layers.includes("f");
+      this.state.comparisonDiff = layers.includes("d");
     }
     if (params.get("play") === "0") {
       this.state.trajectoryPlaying = false;
@@ -353,6 +357,8 @@ export class QorbitalApp {
       [this.elements.toggleAtoms, "showAtoms"],
       [this.elements.toggleTrajectories, "showTrajectories"],
       [this.elements.toggleEnsemble, "showEnsemble"],
+      [this.elements.toggleComparison, "showComparison"],
+      [this.elements.toggleComparisonDiff, "comparisonDiff"],
     ];
     for (const [el, key] of bindings) {
       el.addEventListener("change", () => {
@@ -369,12 +375,24 @@ export class QorbitalApp {
    * Single funnel for all layer-visibility changes (checkbox, keyboard,
    * toolbar, preset). Keeps state, every UI surface, and the URL in sync.
    *
-   * @param {"showCloud" | "showSurface" | "showAtoms" | "showTrajectories" | "showEnsemble"} key
+   * @param {"showCloud" | "showSurface" | "showAtoms" | "showTrajectories" | "showEnsemble" | "showComparison" | "comparisonDiff"} key
    * @param {boolean} value
    */
   _setLayerState(key, value) {
     if (key === "showEnsemble" && !this._ensemble) value = false;
     if (key === "showSurface" && !this._currentHasMesh) value = false;
+    if (
+      (key === "showComparison" || key === "comparisonDiff") &&
+      !this._comparisonGridValues
+    ) {
+      value = false;
+    }
+    if (key === "showComparison" && !value) {
+      this.state.comparisonDiff = false;
+    }
+    if (key === "comparisonDiff" && value && !this.state.showComparison) {
+      this.state.showComparison = true;
+    }
     this.state[key] = value;
     this._syncLayerUi();
     if (this._currentBundle) {
@@ -404,6 +422,8 @@ export class QorbitalApp {
     check(this.elements.toggleAtoms, this.state.showAtoms);
     check(this.elements.toggleTrajectories, this.state.showTrajectories);
     check(this.elements.toggleEnsemble, this.state.showEnsemble);
+    check(this.elements.toggleComparison, this.state.showComparison);
+    check(this.elements.toggleComparisonDiff, this.state.comparisonDiff);
 
     /** @param {HTMLElement | null | undefined} el @param {boolean} on */
     const active = (el, on) => {
@@ -413,6 +433,7 @@ export class QorbitalApp {
     active(this._toolbar.surface, this.state.showSurface);
     active(this._toolbar.traj, this.state.showTrajectories);
     active(this._toolbar.ensemble, this.state.showEnsemble);
+    active(this._toolbar.comparison, this.state.showComparison);
     active(this._toolbar.tour, this._tourActive);
     if (this._toolbar.play) {
       this._toolbar.play.dataset.active = this.state.trajectoryPlaying
@@ -446,6 +467,32 @@ export class QorbitalApp {
     this._syncLayerUi();
   }
 
+  _refreshComparisonAvailability() {
+    const available = Boolean(this._comparisonGridValues);
+    const toggle = /** @type {HTMLInputElement} */ (
+      this.elements.toggleComparison
+    );
+    const diffToggle = /** @type {HTMLInputElement} */ (
+      this.elements.toggleComparisonDiff
+    );
+    toggle.disabled = !available;
+    diffToggle.disabled = !available;
+    if (this._toolbar.comparison) {
+      /** @type {HTMLButtonElement} */ (this._toolbar.comparison).disabled =
+        !available;
+    }
+    if (!available) {
+      this.state.showComparison = false;
+      this.state.comparisonDiff = false;
+      this.elements.comparisonHint.textContent =
+        "No HF comparison grid for this molecule";
+    } else {
+      this.elements.comparisonHint.textContent =
+        "Classical Hartree–Fock comparison grid";
+    }
+    this._syncLayerUi();
+  }
+
   _wireToolbar() {
     const byId = (id) => document.getElementById(id);
     this._toolbar = {
@@ -453,6 +500,7 @@ export class QorbitalApp {
       surface: byId("btn-surface"),
       traj: byId("btn-traj"),
       ensemble: byId("btn-ensemble"),
+      comparison: byId("btn-comparison"),
       play: byId("btn-play"),
       tour: byId("btn-tour"),
     };
@@ -477,6 +525,9 @@ export class QorbitalApp {
     );
     onClick("btn-ensemble", () =>
       this._setLayerState("showEnsemble", !this.state.showEnsemble),
+    );
+    onClick("btn-comparison", () =>
+      this._setLayerState("showComparison", !this.state.showComparison),
     );
     onClick("btn-play", () => this._setPlaying(!this.state.trajectoryPlaying));
     onClick("btn-preset-copenhagen", () => this._applyPreset("copenhagen"));
@@ -568,6 +619,8 @@ export class QorbitalApp {
     if (this.state.showAtoms) layers += "a";
     if (this.state.showTrajectories) layers += "t";
     if (this.state.showEnsemble) layers += "e";
+    if (this.state.showComparison) layers += "f";
+    if (this.state.comparisonDiff) layers += "d";
     params.set("layers", layers || "0");
     const bond = this.state.previewBond ?? this._currentMolecule.defaultBond;
     params.set("bond", bond.toFixed(2));
@@ -622,6 +675,10 @@ export class QorbitalApp {
         this._setLayerState("showTrajectories", !this.state.showTrajectories);
       } else if (key === "e") {
         this._setLayerState("showEnsemble", !this.state.showEnsemble);
+      } else if (key === "f") {
+        this._setLayerState("showComparison", !this.state.showComparison);
+      } else if (key === "d") {
+        this._setLayerState("comparisonDiff", !this.state.comparisonDiff);
       } else if (key === " ") {
         event.preventDefault();
         this._setPlaying(!this.state.trajectoryPlaying);
@@ -848,6 +905,11 @@ export class QorbitalApp {
     if (this.state.showEnsemble && this._ensembleCount > 0) {
       modeParts.push(`ensemble ×${this._ensembleCount}`);
     }
+    if (this.state.showComparison && this.state.comparisonDiff) {
+      modeParts.push("Δρ");
+    } else if (this.state.showComparison) {
+      modeParts.push("HF overlay");
+    }
     const modeLabel = modeParts.length > 0 ? modeParts.join(" + ") : "layers off";
 
     this._hudPhaseBase = `${method} · ${modeLabel}`;
@@ -983,6 +1045,56 @@ export class QorbitalApp {
       }
     }
 
+    if (
+      this.state.showComparison &&
+      this.state.comparisonDiff &&
+      this._comparisonGridValues &&
+      this._gridValues
+    ) {
+      const vqeField = createDensityField(bundle, this._gridValues);
+      const hfField = createDensityField(
+        {
+          molecule: bundle.molecule,
+          density: bundle.comparison,
+        },
+        this._comparisonGridValues,
+      );
+      const { positions, densities } = sampleDiffPoints(
+        vqeField,
+        hfField,
+        this.state.particleCount,
+      );
+      if (densities.length > 0) {
+        this._contentGroup.add(
+          createDensityCloud(positions, densities, {
+            colormap: DIFF_COLORMAP,
+            opacity: 0.7,
+            signed: true,
+          }),
+        );
+      }
+    } else if (this.state.showComparison && this._comparisonGridValues) {
+      const hfField = createDensityField(
+        {
+          molecule: bundle.molecule,
+          density: bundle.comparison,
+        },
+        this._comparisonGridValues,
+      );
+      const { positions, densities } = sampleDensityPoints(
+        hfField,
+        this.state.particleCount,
+      );
+      if (densities.length > 0) {
+        this._contentGroup.add(
+          createDensityCloud(positions, densities, {
+            colormap: HF_COLORMAP,
+            opacity: 0.65,
+          }),
+        );
+      }
+    }
+
     if (this.state.showSurface && density.kind === "mesh") {
       this._contentGroup.add(createIsosurfaceMesh(density));
     }
@@ -1041,10 +1153,17 @@ export class QorbitalApp {
         url,
         /** @type {Record<string, unknown>} */ (bundle.density),
       );
+      this._comparisonGridValues = bundle.comparison
+        ? await loadGridValues(
+            url,
+            /** @type {Record<string, unknown>} */ (bundle.comparison),
+          )
+        : null;
       this._trajectoryValues = await loadTrajectoryValues(
         url,
         /** @type {Record<string, unknown> | undefined} */ (bundle.trajectories),
       );
+      this._refreshComparisonAvailability();
       this.renderBundle(bundle);
       this.setOverlay("");
     } catch (err) {
