@@ -1,4 +1,4 @@
-"""Run LiH bond-length sweep on ionq_sim (sim-only stand-in for Aria)."""
+"""Run LiH bond-length sweep on ionq_sim (sim-only stand-in for Forte Enterprise)."""
 
 from __future__ import annotations
 

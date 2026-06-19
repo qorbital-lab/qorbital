@@ -1,4 +1,4 @@
-"""Run H2 VQE ensemble on ionq_sim (sim-only stand-in for Aria hardware)."""
+"""Run H2 VQE ensemble on ionq_sim (sim-only stand-in for Forte Enterprise hardware)."""
 
 from __future__ import annotations
 

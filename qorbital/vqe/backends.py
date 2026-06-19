@@ -16,7 +16,7 @@ _IONQ_TOKEN_ENV_VARS = (IONQ_API_KEY_ENV, "QISKIT_IONQ_API_TOKEN", "IONQ_API_TOK
 #: Map each IonQ backend enum to the provider's device name string.
 _IONQ_DEVICE_NAMES = {
     "ionq_sim": "simulator",
-    "ionq_aria": "qpu.aria-1",
+    "ionq_forte": "qpu.forte-enterprise-1",
 }
 
 
@@ -25,7 +25,7 @@ class Backend(str, Enum):
 
     AER = "aer"
     IONQ_SIM = "ionq_sim"
-    IONQ_ARIA = "ionq_aria"
+    IONQ_FORTE = "ionq_forte"
 
 
 def _resolve_ionq_token() -> str:
@@ -82,9 +82,10 @@ def make_estimator(
     ----------
     backend
         ``AER`` returns an exact local statevector estimator (default).
-        ``IONQ_SIM`` / ``IONQ_ARIA`` return a real IonQ-backed
+        ``IONQ_SIM`` / ``IONQ_FORTE`` return a real IonQ-backed
         :class:`~qiskit.primitives.BackendEstimatorV2` bound to
-        ``ionq_simulator`` / ``ionq_qpu.aria-1`` respectively, requiring an API
+        ``ionq_simulator`` / ``ionq_qpu.forte-enterprise-1`` respectively,
+        requiring an API
         key (see :data:`IONQ_API_KEY_ENV`).  These are for *evaluation /
         submission* of the converged circuit; the VQE optimizer loop always
         uses :func:`make_local_estimator` (see ``solver.py``).

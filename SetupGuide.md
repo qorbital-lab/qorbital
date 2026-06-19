@@ -360,7 +360,7 @@ so hardware-touching tests skip cleanly (see §7).
 |-------------|--------|--------------|
 | `aer` | local statevector | no |
 | `ionq_sim` | `ionq_simulator` (IonQ cloud) | yes |
-| `ionq_aria` | `ionq_qpu.aria-1` | yes |
+| `ionq_forte` | `ionq_qpu.forte-enterprise-1` | yes |
 
 The VQE optimizer always runs locally; IonQ is used only to evaluate/submit the
 converged circuit (credits spent once per run, not per optimizer iteration). See

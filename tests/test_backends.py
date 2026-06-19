@@ -49,9 +49,9 @@ class TestIonQEstimator:
 
     @pytest.mark.hardware
     @_requires_key
-    def test_ionq_aria_maps_to_qpu(self):
+    def test_ionq_forte_maps_to_qpu(self):
         from qiskit.primitives import BackendEstimatorV2
 
-        est = make_estimator(Backend.IONQ_ARIA)
+        est = make_estimator(Backend.IONQ_FORTE)
         assert isinstance(est, BackendEstimatorV2)
-        assert est.backend.name() == "ionq_qpu.aria-1"
+        assert est.backend.name() == "ionq_qpu.forte-enterprise-1"

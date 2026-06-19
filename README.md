@@ -78,7 +78,7 @@ IONQ_API_KEY="ionq_..." uv run python -m qorbital.vqe.submit --molecule h2 --bac
 |-------------|--------|--------------|-----|
 | `aer` | local statevector | no | default — fast exact simulation |
 | `ionq_sim` | `ionq_simulator` (IonQ cloud) | yes | IonQ cloud simulator |
-| `ionq_aria` | `ionq_qpu.aria-1` | yes | real trapped-ion QPU (spends credits) |
+| `ionq_forte` | `ionq_qpu.forte-enterprise-1` | yes | real trapped-ion QPU (spends credits) |
 
 **Optimize-local / submit-converged model.** The VQE optimizer **always** runs
 on the local statevector simulator — queue latency and shot noise would distort

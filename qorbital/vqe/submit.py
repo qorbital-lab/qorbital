@@ -23,7 +23,7 @@ from qorbital.vqe.solver import (
 )
 
 #: IonQ backends that execute the converged circuit on the cloud.
-_HARDWARE_BACKENDS = (Backend.IONQ_SIM, Backend.IONQ_ARIA)
+_HARDWARE_BACKENDS = (Backend.IONQ_SIM, Backend.IONQ_FORTE)
 
 #: Candidate keys for per-job credit cost in an IonQ job's response metadata.
 #: qiskit-ionq does not parse cost itself, so we probe defensively.
