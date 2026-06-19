@@ -5,7 +5,6 @@ from __future__ import annotations
 import struct
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.typing import NDArray
@@ -13,6 +12,11 @@ from numpy.typing import NDArray
 from qorbital.bohmian.velocity import superposition_period
 from qorbital.chemistry.density import ElectronDensityGrid
 from qorbital.chemistry.hartree_fock import compute_hf_density
+from qorbital.chemistry.superposition import SuperpositionState
+from qorbital.viz.isosurface import (
+    integrated_electron_count,
+    isovalue_enclosing_fraction,
+)
 from qorbital.viz.schema import (
     SCHEMA_VERSION,
     AtomSpec,
@@ -24,9 +28,6 @@ from qorbital.viz.schema import (
     VisualizationBundle,
     save_bundle,
 )
-
-if TYPE_CHECKING:
-    from qorbital.chemistry.superposition import SuperpositionState
 
 # Element positions for registry molecules (Angstrom, along z-axis)
 _NUCLEUS_OFFSETS: dict[str, list[tuple[str, list[float]]]] = {
@@ -138,10 +139,16 @@ def density_grid_to_sidecar(
     density: ElectronDensityGrid,
     directory: Path,
     filename: str,
+    *,
+    enclosed_fraction: float = 0.9,
 ) -> DensityGrid:
     """Pack an ElectronDensityGrid into a DensityGrid sidecar."""
     sidecar_path = directory / filename
     _write_float32_sidecar(sidecar_path, density.density.astype(np.float32))
+    default_isovalue, _ = isovalue_enclosing_fraction(
+        density.density, density.spacing, enclosed_fraction
+    )
+    electron_count = integrated_electron_count(density.density, density.spacing)
     return DensityGrid(
         origin=density.origin.tolist(),
         spacing=density.spacing.tolist(),
@@ -149,7 +156,8 @@ def density_grid_to_sidecar(
         values=filename,
         value_encoding="float32-le",
         units="electron_density_au",
-        default_isovalue=0.02,
+        default_isovalue=default_isovalue,
+        electron_count=electron_count,
     )
 
 
@@ -166,6 +174,8 @@ def build_molecule_bundle(
     backend_name: str = "aer",
     output_dir: Path | None = None,
     dt: float = 0.1,
+    superposition: SuperpositionState | None = None,
+    trajectory_times: NDArray[np.float64] | None = None,
 ) -> tuple[VisualizationBundle, Path]:
     """Build and write a complete visualization bundle for a molecule."""
     if output_dir is None:
@@ -189,9 +199,18 @@ def build_molecule_bundle(
     traj_set = None
     if trajectories is not None:
         traj_sidecar = f"{molecule_id.lower()}_trajectories.bin"
-        traj_set = trajectories_to_sidecar(
-            trajectories, output_dir, traj_sidecar, dt=dt
-        )
+        if superposition is not None and trajectory_times is not None:
+            traj_set = trajectory_set_from_superposition(
+                trajectories,
+                output_dir,
+                traj_sidecar,
+                superposition,
+                trajectory_times,
+            )
+        else:
+            traj_set = trajectories_to_sidecar(
+                trajectories, output_dir, traj_sidecar, dt=dt
+            )
 
     offsets = _NUCLEUS_OFFSETS.get(molecule_id, [])
     if offsets and molecule_id == "H2":

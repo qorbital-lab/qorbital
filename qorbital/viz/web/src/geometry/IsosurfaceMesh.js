@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { colorFromScalar, emissiveFromScalar, WIREFRAME_EDGE } from "../util/colorMaps.js";
+import { extractIsosurface } from "./marchingCubes.js";
 
 /**
  * Build an isosurface mesh from ADR-004 MeshSurface data.
@@ -84,6 +85,63 @@ export function createIsosurfaceMesh(density) {
       }
     }
   }
+
+  return group;
+}
+
+/**
+ * Extract and render an isosurface from a density grid sidecar.
+ *
+ * @param {Float32Array} values
+ * @param {Record<string, unknown>} density
+ * @param {number} isovalue
+ * @returns {THREE.Group | null}
+ */
+export function createGridIsosurface(values, density, isovalue) {
+  const origin = /** @type {number[]} */ (density.origin);
+  const spacing = /** @type {number[]} */ (density.spacing);
+  const shape = /** @type {number[]} */ (density.shape);
+
+  const { positions, indices, triangleCount } = extractIsosurface(
+    values,
+    origin,
+    spacing,
+    shape,
+    isovalue,
+  );
+  if (triangleCount === 0) {
+    return null;
+  }
+
+  const group = new THREE.Group();
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+  geometry.computeVertexNormals();
+
+  const material = new THREE.MeshStandardMaterial({
+    color: 0x6aa8ff,
+    metalness: 0.08,
+    roughness: 0.72,
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 0.55,
+    depthWrite: false,
+  });
+
+  const mesh = new THREE.Mesh(geometry, material);
+  group.add(mesh);
+
+  const edges = new THREE.EdgesGeometry(geometry, 18);
+  const wireframe = new THREE.LineSegments(
+    edges,
+    new THREE.LineBasicMaterial({
+      color: WIREFRAME_EDGE,
+      transparent: true,
+      opacity: 0.22,
+    }),
+  );
+  group.add(wireframe);
 
   return group;
 }

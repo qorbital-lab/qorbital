@@ -33,6 +33,7 @@ try {
     metaHf: requireElement("meta-hf"),
     metaFci: requireElement("meta-fci"),
     metaIsovalue: requireElement("meta-isovalue"),
+    metaElectronCount: requireElement("meta-electron-count"),
     backendBadge: requireElement("hud-backend-badge"),
     legendDensity: requireElement("legend-density"),
     legendSpeed: requireElement("legend-speed"),

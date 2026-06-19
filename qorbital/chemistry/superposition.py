@@ -315,3 +315,130 @@ def build_superposition_state(
         omega=(e1 - e0) / _HBAR,
         source=source,
     )
+
+
+def build_superposition_from_ground_state(
+    ground_statevector: NDArray[np.complex128],
+    integrals: MolecularIntegrals,
+    atom_string: str,
+    *,
+    bond_length: float | None = None,
+    basis: str = "sto-3g",
+    grid_points: int = 50,
+    padding: float = 3.0,
+    mapping: QubitMapping | str | None = None,
+    two_qubit_reduction: bool | None = None,
+    ground_energy: float | None = None,
+    c0: float | None = None,
+    c1: float | None = None,
+) -> SuperpositionState:
+    """Build a two-state superposition from a VQE/hardware ground + exact excited.
+
+    phi0 is projected from ``ground_statevector``; phi1 from the first excited
+    eigenvector of exact diagonalization on the same grid.
+    """
+    from qorbital.bohmian.projection import project_hf_mo, project_natural_orbital
+
+    params = get_molecule_params(atom_string)
+    resolved_mapping = mapping if mapping is not None else params.mapping
+    resolved_2qr = (
+        two_qubit_reduction
+        if two_qubit_reduction is not None
+        else params.two_qubit_reduction
+    )
+
+    qubit_hamiltonian = build_hamiltonian(
+        atom_string,
+        bond_length=bond_length,
+        basis=basis,
+        charge=params.charge,
+        spin=params.spin,
+        mapping=resolved_mapping,
+        two_qubit_reduction=resolved_2qr,
+    )
+    (_, e0_exact), (sv1, e1) = lowest_eigenstates(qubit_hamiltonian, k=2)
+    e0 = ground_energy if ground_energy is not None else e0_exact
+
+    density0 = compute_density(
+        ground_statevector,
+        integrals,
+        grid_points=grid_points,
+        padding=padding,
+        atom_string=atom_string,
+        basis=basis,
+        mapping=resolved_mapping,
+        two_qubit_reduction=resolved_2qr,
+    )
+    density1 = compute_density(
+        sv1,
+        integrals,
+        grid_points=grid_points,
+        padding=padding,
+        atom_string=atom_string,
+        basis=basis,
+        mapping=resolved_mapping,
+        two_qubit_reduction=resolved_2qr,
+    )
+
+    wf0 = project_natural_orbital(density0, integrals, atom_string, basis=basis)
+    origin_bohr, spacing_bohr = _wavefunction_to_bohr(wf0)
+    phi0_norm = _normalize_on_grid(wf0.psi, spacing_bohr)
+
+    n_orbitals = len(density1.natural_occupations)
+    best_wf1: WavefunctionGrid | None = None
+    best_overlap = float("inf")
+    for orbital_index in range(n_orbitals):
+        candidate = project_natural_orbital(
+            density1,
+            integrals,
+            atom_string,
+            basis=basis,
+            orbital_index=orbital_index,
+        )
+        phi_candidate = _normalize_on_grid(candidate.psi, spacing_bohr)
+        overlap = abs(grid_overlap(phi0_norm, phi_candidate, spacing_bohr))
+        if overlap < best_overlap:
+            best_overlap = overlap
+            best_wf1 = candidate
+
+    if best_wf1 is None:
+        msg = "no natural orbital available for excited-state projection"
+        raise ValueError(msg)
+    wf1 = best_wf1
+    assert_common_grid(wf0, wf1)
+
+    use_fallback = atom_string == "LiH" and (
+        not natural_orbital_is_usable(density0, wf0)
+        or not natural_orbital_is_usable(density1, wf1)
+    )
+    if use_fallback:
+        n_occ = integrals.num_particles[0]
+        wf0 = project_hf_mo(
+            density0, integrals, atom_string, mo_index=n_occ - 1, basis=basis
+        )
+        wf1 = project_hf_mo(
+            density1, integrals, atom_string, mo_index=n_occ, basis=basis
+        )
+        assert_common_grid(wf0, wf1)
+
+    origin_bohr, spacing_bohr = _wavefunction_to_bohr(wf0)
+    phi0 = _normalize_on_grid(wf0.psi, spacing_bohr)
+    phi1 = _normalize_on_grid(wf1.psi, spacing_bohr)
+
+    coeff0 = _DEFAULT_C if c0 is None else c0
+    coeff1 = _DEFAULT_C if c1 is None else c1
+
+    return SuperpositionState(
+        origin=origin_bohr,
+        spacing=spacing_bohr,
+        grid_shape=wf0.grid_shape,
+        phi0=phi0,
+        phi1=phi1,
+        state_indices=(0, 1),
+        E0=e0,
+        E1=e1,
+        c0=coeff0,
+        c1=coeff1,
+        omega=(e1 - e0) / _HBAR,
+        source="hardware_ground+exact_excited",
+    )

@@ -49,6 +49,7 @@ class DensityGrid:
     value_encoding: str = "float32-le"
     units: str = "electron_density_au"
     default_isovalue: float = 0.02
+    electron_count: float | None = None
 
 
 @dataclass
@@ -147,6 +148,7 @@ def _grid_from_dict(data: dict[str, Any]) -> DensityGrid:
         value_encoding=data.get("value_encoding", "float32-le"),
         units=data.get("units", "electron_density_au"),
         default_isovalue=float(data.get("default_isovalue", 0.02)),
+        electron_count=_optional_float(data, "electron_count"),
     )
 
 

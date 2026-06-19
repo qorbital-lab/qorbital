@@ -82,6 +82,7 @@
             <div><dt>HF ref</dt><dd id="meta-hf">—</dd></div>
             <div><dt>FCI ref</dt><dd id="meta-fci">—</dd></div>
             <div><dt>Isovalue</dt><dd id="meta-isovalue">—</dd></div>
+            <div><dt>Electrons</dt><dd id="meta-electron-count">—</dd></div>
           </dl>
         </aside>
 
@@ -139,27 +140,27 @@
 
           <section class="panel" id="panel-isosurface" hidden>
             <h3>Isosurface</h3>
-            <label for="isovalue-slider">ρ(r) threshold</label>
+            <label for="isovalue-slider">Enclosed probability</label>
             <input
               id="isovalue-slider"
               type="range"
-              min="0.005"
-              max="0.08"
-              step="0.001"
-              value="0.02"
+              min="50"
+              max="99"
+              step="1"
+              value="90"
             />
-            <p class="readout"><span id="isovalue-readout">0.020</span> a.u.</p>
-            <p class="hint">Live isovalue update (mesh bundles)</p>
+            <p class="readout"><span id="isovalue-readout">90% · ρ — a.u.</span></p>
+            <p class="hint">Live isovalue from grid density (probability-enclosing level)</p>
           </section>
 
           <section class="panel">
             <h3>Layers</h3>
             <label class="layer-toggle">
-              <input id="toggle-cloud" type="checkbox" checked />
+              <input id="toggle-cloud" type="checkbox" />
               Probability cloud (ρ samples)
             </label>
             <label class="layer-toggle" id="surface-toggle-label">
-              <input id="toggle-surface" type="checkbox" />
+              <input id="toggle-surface" type="checkbox" checked />
               Iso-surface shell
             </label>
             <label class="layer-toggle">

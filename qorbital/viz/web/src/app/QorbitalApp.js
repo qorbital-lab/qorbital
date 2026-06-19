@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { loadBundle } from "../loaders/BundleLoader.js";
 import { createAtomGlyphs } from "../geometry/AtomGlyphs.js";
-import { createIsosurfaceMesh } from "../geometry/IsosurfaceMesh.js";
+import { createIsosurfaceMesh, createGridIsosurface } from "../geometry/IsosurfaceMesh.js";
 import { createDensityCloud } from "../geometry/DensityCloud.js";
 import { createTrajectoryPaths } from "../geometry/TrajectoryPaths.js";
 import { createEnsembleTrajectories } from "../geometry/EnsembleTrajectories.js";
@@ -11,6 +11,7 @@ import { createDensityField } from "../density/densityField.js";
 import { computeUncertaintyCloud } from "../density/computeUncertaintyCloud.js";
 import { sampleUncertaintyPoints } from "../density/sampleUncertaintyPoints.js";
 import { loadGridValues } from "../density/loadGridValues.js";
+import { isovalueFromFraction } from "../density/isovalueFromFraction.js";
 import { sampleDensityPoints } from "../density/samplePoints.js";
 import { sampleDiffPoints } from "../density/sampleDiffPoints.js";
 import { loadTrajectoryValues } from "../trajectories/loadTrajectoryValues.js";
@@ -94,6 +95,11 @@ export class QorbitalApp {
     this._densityPeak = 0;
     this._speedPeak = 0;
     this._currentHasMesh = false;
+    this._currentHasGrid = false;
+    this._surfaceAvailable = false;
+    /** @type {{ isovalue: number, electronCount: number, actualFraction: number } | null} */
+    this._isoStats = null;
+    this._isoDebounceTimer = null;
     this._tourActive = false;
     this._deepLinkApplied = false;
     /** @type {Record<string, HTMLElement | null>} */
@@ -217,16 +223,103 @@ export class QorbitalApp {
   }
 
   _renderPhase() {
+    const traj = this._currentBundle?.trajectories
+      ? /** @type {Record<string, unknown>} */ (this._currentBundle.trajectories)
+      : null;
+    const dynamicsNote = this._trajectoryDynamicsLabel(traj);
+
     if (this._animatedGroups.length > 0 && this._trajPeriod > 0) {
       const tNow = this._trajProgress * this._trajPeriod;
       let playState = this.state.trajectoryPlaying ? "playing" : "paused";
       if (this._isScrubbing) {
         playState = "scrubbing";
       }
+      const dynamicsSuffix = dynamicsNote ? ` · ${dynamicsNote}` : "";
       this.elements.hudPhase.textContent =
-        `t ${tNow.toFixed(1)}/${this._trajPeriod.toFixed(1)} a.u. · ${playState} · ${this._hudPhaseBase}`;
+        `t ${tNow.toFixed(1)}/${this._trajPeriod.toFixed(1)} a.u. · ${playState} · ${this._hudPhaseBase}${dynamicsSuffix}`;
     } else {
-      this.elements.hudPhase.textContent = this._hudPhaseBase;
+      const dynamicsSuffix = dynamicsNote ? ` · ${dynamicsNote}` : "";
+      this.elements.hudPhase.textContent = `${this._hudPhaseBase}${dynamicsSuffix}`;
+    }
+  }
+
+  /**
+   * @param {Record<string, unknown> | null} trajectories
+   * @returns {string}
+   */
+  _trajectoryDynamicsLabel(trajectories) {
+    if (!trajectories || !this.state.showTrajectories) {
+      return "";
+    }
+    const source = String(trajectories.source ?? "");
+    if (source.includes("superposition") || source.includes("hardware_ground")) {
+      return "ground+excited superposition dynamics";
+    }
+    if (source === "exact_diag") {
+      return "exact two-state superposition";
+    }
+    if (trajectories.period != null || trajectories.times != null) {
+      return "time-dependent superposition";
+    }
+    return "stationary eigenstate (Bohmian v = 0)";
+  }
+
+  /**
+   * Resolve isovalue from enclosed-fraction slider for the loaded grid.
+   */
+  _resolveGridIsovalue() {
+    if (!this._gridValues || !this._currentBundle) {
+      this._isoStats = null;
+      return;
+    }
+    const density = /** @type {Record<string, unknown>} */ (
+      this._currentBundle.density
+    );
+    if (density.kind !== "grid") {
+      this._isoStats = null;
+      return;
+    }
+    const spacing = /** @type {number[]} */ (density.spacing);
+    const stats = isovalueFromFraction(
+      this._gridValues,
+      spacing,
+      this.state.enclosedFraction,
+    );
+    this.state.isovalue = stats.isovalue;
+    this._isoStats = {
+      isovalue: stats.isovalue,
+      electronCount: stats.electronCount,
+      actualFraction: stats.actualFraction,
+    };
+  }
+
+  _updateIsovalueUi() {
+    const stats = this._isoStats;
+    const fractionPct = Math.round(this.state.enclosedFraction * 100);
+    const rho = stats?.isovalue ?? this.state.isovalue;
+    const actualPct = stats ? Math.round(stats.actualFraction * 100) : fractionPct;
+
+    if (this.elements.isovalueReadout) {
+      this.elements.isovalueReadout.textContent = `${actualPct}% · ρ ${rho.toFixed(3)} a.u.`;
+    }
+    if (this.elements.metaIsovalue) {
+      this.elements.metaIsovalue.textContent = `${actualPct}% enclosed · ρ ${rho.toFixed(3)} a.u.`;
+    }
+    if (this.elements.metaElectronCount) {
+      const density = this._currentBundle
+        ? /** @type {Record<string, unknown>} */ (this._currentBundle.density)
+        : null;
+      const bundleCount =
+        density?.electron_count != null ? Number(density.electron_count) : null;
+      const electrons = bundleCount ?? stats?.electronCount;
+      this.elements.metaElectronCount.textContent =
+        electrons != null ? `∫ρ ≈ ${electrons.toFixed(2)} e⁻` : "—";
+    }
+    const slider = /** @type {HTMLInputElement | undefined} */ (
+      this.elements.isovalueSlider
+    );
+    if (slider) {
+      slider.value = String(fractionPct);
     }
   }
 
@@ -346,13 +439,22 @@ export class QorbitalApp {
   }
 
   _wireLayerToggles() {
-    /** @type {HTMLInputElement} */ (this.elements.isovalueSlider).disabled = true;
-    this.elements.isovalueSlider.addEventListener("input", () => {
-      const value = Number(
-        /** @type {HTMLInputElement} */ (this.elements.isovalueSlider).value,
-      );
-      this.elements.isovalueReadout.textContent = value.toFixed(3);
-      this.elements.metaIsovalue.textContent = value.toFixed(3);
+    const slider = /** @type {HTMLInputElement} */ (this.elements.isovalueSlider);
+    slider.disabled = false;
+    slider.addEventListener("input", () => {
+      const fractionPct = Number(slider.value);
+      this.state.enclosedFraction = fractionPct / 100;
+      if (this._isoDebounceTimer != null) {
+        clearTimeout(this._isoDebounceTimer);
+      }
+      this._isoDebounceTimer = setTimeout(() => {
+        this._resolveGridIsovalue();
+        this._updateIsovalueUi();
+        if (this._currentBundle) {
+          this.renderBundle(this._currentBundle);
+        }
+      }, 120);
+      this._updateIsovalueUi();
     });
 
     /** @type {Array<[HTMLElement, "showCloud" | "showSurface" | "showAtoms" | "showTrajectories" | "showEnsemble"]>} */
@@ -385,7 +487,7 @@ export class QorbitalApp {
    */
   _setLayerState(key, value) {
     if (key === "showEnsemble" && !this._ensemble) value = false;
-    if (key === "showSurface" && !this._currentHasMesh) value = false;
+    if (key === "showSurface" && !this._surfaceAvailable) value = false;
     if (
       (key === "showComparison" || key === "comparisonDiff") &&
       !this._comparisonGridValues
@@ -557,22 +659,22 @@ export class QorbitalApp {
     /** @type {Record<string, Partial<typeof this.state>>} */
     const presets = {
       copenhagen: {
-        showCloud: true,
-        showSurface: this._currentHasMesh,
+        showCloud: false,
+        showSurface: true,
         showTrajectories: false,
         showEnsemble: false,
         showAtoms: true,
       },
       bohmian: {
         showCloud: false,
-        showSurface: false,
+        showSurface: true,
         showTrajectories: true,
         showEnsemble: false,
         showAtoms: true,
       },
       ensemble: {
-        showCloud: true,
-        showSurface: false,
+        showCloud: false,
+        showSurface: true,
         showTrajectories: true,
         showEnsemble: Boolean(this._ensemble),
         showAtoms: true,
@@ -582,7 +684,7 @@ export class QorbitalApp {
     if (!preset) return;
     Object.assign(this.state, preset);
     if (!this._ensemble) this.state.showEnsemble = false;
-    if (!this._currentHasMesh) this.state.showSurface = false;
+    if (!this._surfaceAvailable) this.state.showSurface = false;
     this._syncLayerUi();
     if (this._currentBundle) {
       this.renderBundle(this._currentBundle);
@@ -924,7 +1026,6 @@ export class QorbitalApp {
     const basis = String(mol.basis ?? "—");
     const equilibriumBond = Number(mol.bond_length_angstrom ?? 0);
     const previewBond = this.state.previewBond ?? equilibriumBond;
-    const iso = Number(density.isovalue ?? density.default_isovalue ?? 0.02);
     const method = String(bundle.method ?? "unknown");
     const backendLabel = backend ? `${backend.provider}/${backend.name}` : "—";
 
@@ -961,12 +1062,9 @@ export class QorbitalApp {
 
     this.elements.metaHf.textContent = refs?.hf != null ? this._fmtEnergy(refs.hf) : "—";
     this.elements.metaFci.textContent = refs?.fci != null ? this._fmtEnergy(refs.fci) : "—";
-    this.elements.metaIsovalue.textContent = iso.toFixed(3);
+    this._updateIsovalueUi();
 
     this.elements.moleculeLabel.textContent = label;
-    /** @type {HTMLInputElement} */ (this.elements.isovalueSlider).value =
-      String(iso);
-    this.elements.isovalueReadout.textContent = iso.toFixed(3);
 
     const displayMolecule = scaleMoleculeBond(mol, previewBond);
     const atoms = /** @type {Array<{symbol: string, position: number[]}>} */ (
@@ -1028,22 +1126,32 @@ export class QorbitalApp {
   }
 
   /**
-   * The isosurface layer + isovalue slider only apply to mesh bundles. Gate
-   * both rather than leaving visibly dead controls.
+   * Enable isosurface controls when mesh or grid density is available.
    *
    * @param {Record<string, unknown>} density
    */
   _refreshSurfaceAvailability(density) {
     const hasMesh = density.kind === "mesh";
+    const hasGrid = density.kind === "grid" && this._gridValues != null;
     this._currentHasMesh = hasMesh;
+    this._currentHasGrid = hasGrid;
+    this._surfaceAvailable = hasMesh || hasGrid;
+
     const toggle = /** @type {HTMLInputElement} */ (this.elements.toggleSurface);
-    toggle.disabled = !hasMesh;
+    const slider = /** @type {HTMLInputElement} */ (this.elements.isovalueSlider);
+    toggle.disabled = !this._surfaceAvailable;
+    slider.disabled = !hasGrid;
     if (this._toolbar.surface) {
-      /** @type {HTMLButtonElement} */ (this._toolbar.surface).disabled = !hasMesh;
+      /** @type {HTMLButtonElement} */ (this._toolbar.surface).disabled =
+        !this._surfaceAvailable;
     }
-    this.elements.surfaceToggleLabel.classList.toggle("disabled", !hasMesh);
-    /** @type {HTMLElement} */ (this.elements.panelIsosurface).hidden = !hasMesh;
-    if (!hasMesh && this.state.showSurface) {
+    this.elements.surfaceToggleLabel.classList.toggle(
+      "disabled",
+      !this._surfaceAvailable,
+    );
+    /** @type {HTMLElement} */ (this.elements.panelIsosurface).hidden =
+      !this._surfaceAvailable;
+    if (!this._surfaceAvailable && this.state.showSurface) {
       this.state.showSurface = false;
       toggle.checked = false;
     }
@@ -1134,6 +1242,22 @@ export class QorbitalApp {
       this._contentGroup.add(createIsosurfaceMesh(density));
     }
 
+    if (
+      this.state.showSurface &&
+      density.kind === "grid" &&
+      this._gridValues &&
+      this._isoStats
+    ) {
+      const surface = createGridIsosurface(
+        this._gridValues,
+        density,
+        this._isoStats.isovalue,
+      );
+      if (surface) {
+        this._contentGroup.add(surface);
+      }
+    }
+
     if (this.state.showAtoms) {
       this._contentGroup.add(createAtomGlyphs(displayMolecule));
     }
@@ -1217,6 +1341,7 @@ export class QorbitalApp {
         url,
         /** @type {Record<string, unknown> | undefined} */ (bundle.trajectories),
       );
+      this._resolveGridIsovalue();
       this._refreshComparisonAvailability();
       this._rebuildEnsembleUncertainty();
       this.renderBundle(bundle);

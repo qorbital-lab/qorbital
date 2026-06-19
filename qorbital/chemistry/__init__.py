@@ -23,6 +23,7 @@ from qorbital.chemistry.molecules import (
 )
 from qorbital.chemistry.superposition import (
     SuperpositionState,
+    build_superposition_from_ground_state,
     build_superposition_state,
 )
 
@@ -43,6 +44,7 @@ __all__ = [
     "lowest_eigenstates",
     "map_integrals_to_qubit_op",
     "SuperpositionState",
+    "build_superposition_from_ground_state",
     "build_superposition_state",
     "wavefunction_grid",
 ]

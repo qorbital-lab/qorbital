@@ -43,6 +43,10 @@ class TestTrajectoryExport:
         grid = density_grid_to_sidecar(h2_density, tmp_path, "test_dens.bin")
         assert grid.shape == list(h2_density.grid_shape)
         assert (tmp_path / "test_dens.bin").exists()
+        assert grid.electron_count == pytest.approx(
+            h2_density.integrated_density, rel=0.05
+        )
+        assert grid.default_isovalue > 0
 
     def test_bundle_roundtrip(self, tmp_path, h2_density):
         traj = np.zeros((3, 5, 3))

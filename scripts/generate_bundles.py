@@ -14,13 +14,23 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from qorbital.bohmian.trajectories import DT as _DT
-from qorbital.bohmian.trajectories import generate_trajectories
+import numpy as np
+
+from qorbital.bohmian.integrator import integrate_superposition_trajectories_from_state
+from qorbital.bohmian.seeds import sample_superposition_seeds
+from qorbital.bohmian.velocity import superposition_period
 from qorbital.chemistry.density import compute_density
 from qorbital.chemistry.integrals import compute_integrals
 from qorbital.chemistry.molecules import DEFAULT_BOND_LENGTHS, get_molecule_params
+from qorbital.chemistry.superposition import (
+    SuperpositionState,
+    build_superposition_from_ground_state,
+)
 from qorbital.viz.schema import SCHEMA_VERSION
-from qorbital.viz.trajectories import build_molecule_bundle, trajectories_to_sidecar
+from qorbital.viz.trajectories import (
+    build_molecule_bundle,
+    trajectory_set_from_superposition,
+)
 from qorbital.vqe.solver import run_vqe, statevector_from_params
 
 MOLECULE_LABELS: dict[str, str] = {
@@ -29,18 +39,75 @@ MOLECULE_LABELS: dict[str, str] = {
     "LiH": "LiH",
 }
 
+_GRID_POINTS: dict[str, int] = {
+    "H2": 50,
+    "HeH+": 50,
+    "LiH": 64,
+}
+
+# Trajectory integration controls, shared by single-run and ensemble paths.
+_N_PARTICLES = 20
+_N_STEPS = 100
+_N_PERIODS = 2.0
+
+
+def _density_mapping(molecule: str) -> tuple[str, bool]:
+    params = get_molecule_params(molecule)
+    mapping = params.mapping
+    two_qubit_reduction = params.two_qubit_reduction
+    if molecule == "LiH":
+        mapping = "jordan_wigner"
+        two_qubit_reduction = False
+    return mapping, two_qubit_reduction
+
+
+def _generate_trajectories(
+    ground_statevector: np.ndarray,
+    integrals,
+    molecule: str,
+    *,
+    bond: float | None = None,
+    ground_energy: float | None = None,
+    grid_points: int | None = None,
+    n_particles: int = _N_PARTICLES,
+    n_steps: int = _N_STEPS,
+    n_periods: float = _N_PERIODS,
+) -> tuple[np.ndarray, SuperpositionState, np.ndarray]:
+    """Integrate honest superposition Bohmian trajectories from |psi(t0)|^2 seeds."""
+    if bond is None:
+        bond = DEFAULT_BOND_LENGTHS[molecule]
+    if grid_points is None:
+        grid_points = _GRID_POINTS.get(molecule, 50)
+
+    mapping, two_qubit_reduction = _density_mapping(molecule)
+    superposition = build_superposition_from_ground_state(
+        ground_statevector,
+        integrals,
+        molecule,
+        bond_length=bond,
+        grid_points=grid_points,
+        mapping=mapping,
+        two_qubit_reduction=two_qubit_reduction,
+        ground_energy=ground_energy,
+    )
+    seeds = sample_superposition_seeds(superposition, n_particles, t=0.0)
+    period = superposition_period(superposition.E0, superposition.E1)
+    times = np.linspace(0.0, n_periods * period, n_steps)
+    trajectories = integrate_superposition_trajectories_from_state(
+        superposition,
+        seeds,
+        n_periods=n_periods,
+        n_steps=n_steps,
+    )
+    return trajectories, superposition, times
+
 
 def generate_bundle(molecule: str) -> None:
     """Run full pipeline and write bundle for a molecule."""
     params = get_molecule_params(molecule)
     bond = DEFAULT_BOND_LENGTHS[molecule]
-
-    mapping = params.mapping
-    two_qubit_reduction = params.two_qubit_reduction
-    if molecule == "LiH":
-        # compute_density only supports JW-mapped statevectors today.
-        mapping = "jordan_wigner"
-        two_qubit_reduction = False
+    mapping, two_qubit_reduction = _density_mapping(molecule)
+    grid_points = _GRID_POINTS.get(molecule, 50)
 
     vqe_result = run_vqe(
         molecule,
@@ -59,10 +126,17 @@ def generate_bundle(molecule: str) -> None:
     density = compute_density(
         vqe_result.optimal_statevector,
         integrals,
-        grid_points=30,
+        grid_points=grid_points,
         atom_string=molecule,
     )
-    trajectories = generate_trajectories(density, integrals, molecule)
+    trajectories, superposition, times = _generate_trajectories(
+        vqe_result.optimal_statevector,
+        integrals,
+        molecule,
+        bond=bond,
+        ground_energy=vqe_result.total_energy,
+        grid_points=grid_points,
+    )
 
     build_molecule_bundle(
         molecule,
@@ -72,6 +146,8 @@ def generate_bundle(molecule: str) -> None:
         trajectories=trajectories,
         energy_hartree=vqe_result.total_energy,
         reference_energies={"hf": integrals.hf_energy},
+        superposition=superposition,
+        trajectory_times=times,
     )
     print(f"Bundle written for {molecule}")
 
@@ -92,6 +168,7 @@ def generate_ensemble(
     """
     params = get_molecule_params(molecule)
     equilibrium = DEFAULT_BOND_LENGTHS[molecule]
+    grid_points = _GRID_POINTS.get(molecule, 50)
     if runs_dir is None:
         runs_dir = Path("data/runs") / molecule.lower()
     if output_dir is None:
@@ -141,14 +218,20 @@ def generate_ensemble(
             )
             integrals_cache[key] = integrals
 
-        density = compute_density(
-            statevector, integrals, grid_points=30, atom_string=molecule
+        trajectories, superposition, times = _generate_trajectories(
+            statevector,
+            integrals,
+            molecule,
+            bond=bond,
+            ground_energy=run.get("energy"),
+            grid_points=grid_points,
         )
-        trajectories = generate_trajectories(density, integrals, molecule, bond=bond)
 
         index = len(members)
         sidecar = f"{molecule.lower()}_ens_{index:02d}.bin"
-        traj_set = trajectories_to_sidecar(trajectories, output_dir, sidecar, dt=_DT)
+        traj_set = trajectory_set_from_superposition(
+            trajectories, output_dir, sidecar, superposition, times
+        )
         members.append(
             {
                 "run_id": run.get("run_id", run_file.stem),
