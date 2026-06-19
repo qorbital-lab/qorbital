@@ -55,6 +55,9 @@ try {
     toggleEnsemble: requireElement("toggle-ensemble"),
     ensembleHint: requireElement("ensemble-hint"),
     trajectoryScrubber: requireElement("trajectory-scrubber"),
+    convergenceInset: requireElement("convergence-inset"),
+    runSelect: requireElement("run-select"),
+    convergenceChart: requireElement("hud-convergence"),
   });
 
   window.qorbitalApp = app;

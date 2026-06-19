@@ -22,7 +22,9 @@ import { interpolateEnergy } from "../pes/interpolateEnergy.js";
 import { SceneManager } from "../scene/SceneManager.js";
 import { drawMoleculeMinimap } from "../ui/MiniMap.js";
 import { drawPesChart } from "../ui/PesChart.js";
+import { drawConvergencePlot } from "../ui/ConvergencePlot.js";
 import { drawColorbar } from "../ui/Legend.js";
+import { loadRunLog } from "../runs/loadRunLog.js";
 import { DENSITY_COLORMAP, SPEED_COLORMAP } from "../util/colorMaps.js";
 import { disposeObject } from "../util/dispose.js";
 import { initialState } from "./state.js";
@@ -102,6 +104,8 @@ export class QorbitalApp {
     this._currentMolecule = null;
     /** @type {Array<{ bond_length: number, energy: number }> | null} */
     this._pesPoints = null;
+    /** @type {string | null} */
+    this._selectedRunId = null;
 
     this._deepLink = this._parseDeepLink();
 
@@ -593,6 +597,16 @@ export class QorbitalApp {
       );
       this.onBondChange(bond);
     });
+
+    this.elements.runSelect.addEventListener("change", () => {
+      const runId = /** @type {HTMLSelectElement} */ (
+        this.elements.runSelect
+      ).value;
+      if (runId && this._currentMolecule) {
+        this._selectedRunId = runId;
+        this._loadAndDrawConvergence(this._currentMolecule, runId);
+      }
+    });
   }
 
   _wireKeyboardShortcuts() {
@@ -680,6 +694,7 @@ export class QorbitalApp {
       ? await loadEnsemble(entry.ensembleUrl)
       : null;
     this._refreshEnsembleAvailability();
+    this._refreshConvergencePanel(entry);
 
     await this.load(entry.bundleUrl);
     this.onBondChange(initialBond);
@@ -723,6 +738,64 @@ export class QorbitalApp {
     this.state.controlsOpen = !this.state.controlsOpen;
     /** @type {HTMLElement} */ (this.elements.controlsPanel).hidden =
       !this.state.controlsOpen;
+  }
+
+  /**
+   * Populate the run selector from the loaded ensemble and draw convergence.
+   *
+   * @param {import("../config/moleculeCatalog.js").MoleculeEntry} entry
+   */
+  _refreshConvergencePanel(entry) {
+    const inset = /** @type {HTMLElement} */ (this.elements.convergenceInset);
+    const select = /** @type {HTMLSelectElement} */ (this.elements.runSelect);
+    const members = this._ensemble?.members?.filter((m) => m.runId) ?? [];
+
+    select.replaceChildren();
+    if (members.length === 0) {
+      inset.hidden = true;
+      this._selectedRunId = null;
+      return;
+    }
+
+    for (const member of members) {
+      const option = document.createElement("option");
+      option.value = member.runId;
+      const shots =
+        member.shots != null ? `${member.shots.toLocaleString()} shots` : "—";
+      const shortId = member.runId.replace(/^h2_ensemble_|^lih_r/, "");
+      option.textContent = `${shortId} · ${shots}`;
+      select.appendChild(option);
+    }
+
+    const preferred =
+      members.find((m) => m.runId === this._selectedRunId)?.runId ??
+      members[0].runId;
+    select.value = preferred;
+    this._selectedRunId = preferred;
+    this._loadAndDrawConvergence(entry, preferred);
+  }
+
+  /**
+   * Fetch a run log and render the convergence chart in the HUD.
+   *
+   * @param {import("../config/moleculeCatalog.js").MoleculeEntry} entry
+   * @param {string} runId
+   */
+  async _loadAndDrawConvergence(entry, runId) {
+    const inset = /** @type {HTMLElement} */ (this.elements.convergenceInset);
+    const canvas = /** @type {HTMLCanvasElement} */ (
+      this.elements.convergenceChart
+    );
+    const moleculeDir = entry.id.toLowerCase();
+
+    try {
+      const summary = await loadRunLog(moleculeDir, runId);
+      drawConvergencePlot(canvas, summary.history);
+      inset.hidden = false;
+    } catch (err) {
+      console.warn("Run log load failed:", err);
+      inset.hidden = true;
+    }
   }
 
   /**

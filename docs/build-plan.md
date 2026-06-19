@@ -102,6 +102,7 @@ Dependencies are noted per segment. Within a phase, segments can mostly run in p
 **Acceptance:** one render loop = one physical period; scrubbing updates trajectory positions live; HUD shows `t / period`.
 
 ### [F3] Static convergence plot from run logs
+**Status:** DONE
 **Scope:** New `qorbital/viz/web/src/ui/ConvergencePlot.js` (canvas, mirror `PesChart.js`). Read `optimizer_history` (already in every run log, e.g. `data/runs/h2/*.json`) → energy-vs-iteration curve. Static, no live backend. Add a HUD panel.
 **Acceptance:** renders a real H₂ run's convergence; updates when molecule/run changes.
 
