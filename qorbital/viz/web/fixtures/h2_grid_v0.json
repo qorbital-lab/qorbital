@@ -1,0 +1,64 @@
+{
+  "schema_version": "0.1.0",
+  "molecule": {
+    "id": "H2",
+    "label": "H\u2082",
+    "bond_length_angstrom": 0.74,
+    "basis": "sto-3g",
+    "atoms": [
+      {
+        "symbol": "H",
+        "position": [
+          0.0,
+          0.0,
+          -0.37
+        ]
+      },
+      {
+        "symbol": "H",
+        "position": [
+          0.0,
+          0.0,
+          0.37
+        ]
+      }
+    ]
+  },
+  "method": "mock",
+  "density": {
+    "kind": "grid",
+    "origin": [
+      -1.6,
+      -1.6,
+      -1.6
+    ],
+    "spacing": [
+      0.16,
+      0.16,
+      0.16
+    ],
+    "shape": [
+      21,
+      21,
+      21
+    ],
+    "values": "h2_grid_v0.bin",
+    "value_encoding": "float32-le",
+    "units": "electron_density_au",
+    "default_isovalue": 0.02
+  },
+  "backend": {
+    "provider": "fixture",
+    "name": "h2_grid_v0"
+  },
+  "energy_hartree": -1.13728,
+  "reference_energies": {
+    "hf": -1.11675,
+    "fci": -1.13728
+  },
+  "provenance": {
+    "run_id": "fixture_h2_grid_v0",
+    "created_at": "2026-05-28T21:54:28Z",
+    "git_sha": ""
+  }
+}

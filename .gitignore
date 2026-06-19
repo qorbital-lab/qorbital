@@ -7,3 +7,4 @@ build/
 .pytest_cache/
 .ruff_cache/
 *_build_plan.md
+_site/

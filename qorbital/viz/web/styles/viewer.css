@@ -4,109 +4,389 @@
   box-sizing: border-box;
 }
 
+:root {
+  /* Cleared above the bottom toolbar via JS (_syncToolbarClearance). */
+  --toolbar-offset: 88px;
+  /* Set by JS when the controls drawer is open (_syncPanelLayout). */
+  --panel-width: 0px;
+  --right-panel-width: 0px;
+}
+
 html,
 body {
   margin: 0;
-  height: 100%;
-  font-family:
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    sans-serif;
-  background: #0a0a12;
-  color: #e8e8f0;
-}
-
-#app {
-  display: grid;
-  grid-template-columns: 280px 1fr;
-  height: 100%;
-}
-
-#sidebar {
-  padding: 1rem 1.25rem;
-  border-right: 1px solid #2a2a3a;
-  overflow-y: auto;
-}
-
-#sidebar h1 {
-  margin: 0 0 0.25rem;
-  font-size: 1.25rem;
-  font-weight: 600;
-}
-
-#sidebar .subtitle {
-  margin: 0 0 1.25rem;
-  font-size: 0.8rem;
-  color: #9898b0;
-}
-
-.panel {
-  margin-bottom: 1.25rem;
-}
-
-.panel h2 {
-  margin: 0 0 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #9898b0;
-}
-
-.panel p {
-  margin: 0.25rem 0;
-  font-size: 0.85rem;
-}
-
-.panel label {
-  display: block;
-  font-size: 0.8rem;
-  margin-bottom: 0.35rem;
-}
-
-.panel input[type="range"] {
   width: 100%;
+  height: 100%;
+  min-height: 100vh;
+  overflow: hidden;
+  background: #000;
+  color: #c8c8c8;
+  font-family:
+    ui-monospace,
+    "SF Mono",
+    "Cascadia Code",
+    "Segoe UI Mono",
+    Menlo,
+    Consolas,
+    monospace;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
-.panel .disabled-hint {
-  font-size: 0.75rem;
-  color: #686880;
-  font-style: italic;
-}
-
+#app,
 #viewer-wrap {
-  position: relative;
-  min-height: 0;
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 #viewer-canvas {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
+  background: #000;
 }
 
-#status-bar {
+.hud {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 0.5rem 1rem;
-  font-size: 0.75rem;
-  background: rgba(10, 10, 18, 0.85);
-  border-top: 1px solid #2a2a3a;
   pointer-events: none;
+  z-index: 2;
+}
+
+.hud-tl {
+  top: 14px;
+  left: calc(16px + var(--panel-width, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  /* Don't let the widest child (the status-phase line) stretch the column and
+     balloon the legend box; each child keeps its own natural width. */
+  align-items: flex-start;
+  transition: left 0.15s ease;
+}
+
+.brand-lockup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.brand-mark {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+.brand-logo {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.brand-q {
+  color: #f2f2f2;
+}
+
+.brand-name {
+  color: #7a7a7a;
+  font-weight: 500;
+}
+
+.brand-tag {
+  margin: 0;
+  padding-left: 39px;
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #444;
+}
+
+.reference-inset {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 5px;
+  max-width: 220px;
+}
+
+.reference-caption {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #555;
+}
+
+#hud-minimap {
+  display: block;
+  border: 1px solid #252525;
+  border-radius: 2px;
+  background: #060606;
+  box-shadow:
+    inset 0 0 24px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+.convergence-inset {
+  pointer-events: auto;
+}
+
+#run-select {
+  width: 100%;
+  max-width: 220px;
+  padding: 3px 6px;
+  border: 1px solid #2a2a2a;
+  border-radius: 2px;
+  background: #0a0a0a;
+  color: #aaa;
+  font:
+    500 9px ui-monospace,
+    "SF Mono",
+    Menlo,
+    monospace;
+}
+
+#hud-convergence {
+  display: block;
+  border: 1px solid #252525;
+  border-radius: 2px;
+  background: #060606;
+  box-shadow:
+    inset 0 0 24px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+.hud-tr {
+  top: 14px;
+  right: calc(16px + var(--right-panel-width, 0px));
+  max-width: 280px;
+  padding: 8px 10px;
+  border: 1px solid #222;
+  border-radius: 4px;
+  background: rgba(8, 8, 8, 0.55);
+  text-align: right;
+  overflow: hidden;
+  transition: right 0.15s ease;
+}
+
+.hud-bl {
+  left: calc(16px + var(--panel-width, 0px));
+  bottom: var(--toolbar-offset);
+  max-width: min(380px, calc(42vw - var(--panel-width, 0px) * 0.15));
+  transition: left 0.15s ease, bottom 0.15s ease;
+}
+
+.hud-br {
+  right: calc(16px + var(--right-panel-width, 0px));
+  bottom: var(--toolbar-offset);
+  max-width: min(400px, calc(36vw - var(--right-panel-width, 0px) * 0.15));
+  text-align: right;
+  color: #888;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: right 0.15s ease, bottom 0.15s ease;
+}
+
+.attribution {
+  margin: 0;
+  color: #6f7c8c;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}
+
+.hud-phase {
+  margin: 0;
+  color: #e8e8e8;
+  letter-spacing: 0.02em;
+  line-height: 1.45;
+  /* Cap + wrap the status line so a long layer list never widens the HUD. */
+  max-width: 360px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.backend-badge {
+  margin: 0;
+  padding: 2px 7px;
+  align-self: flex-start;
+  border: 1px solid #2c2c2c;
+  border-radius: 3px;
+  background: rgba(18, 18, 18, 0.7);
+  color: #b9c6d6;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  max-width: min(360px, 72vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 2px;
+  padding: 6px 8px;
+  border: 1px solid #222;
+  border-radius: 4px;
+  background: rgba(8, 8, 8, 0.55);
+}
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-label {
+  width: 26px;
+  color: #8a8a8a;
+  font-size: 9px;
+  font-style: italic;
+}
+
+.legend-bar {
+  display: block;
+  border-radius: 1px;
+}
+
+.legend-max {
+  color: #cfcfcf;
+  font-size: 9px;
+  min-width: 44px;
+}
+
+.legend-scale {
+  margin: 1px 0 0;
+  color: #555;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.meta-list {
+  margin: 0;
+}
+
+.meta-list div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.meta-list dt {
+  color: #666;
+  font-weight: 400;
+}
+
+.meta-list dt::after {
+  content: ":";
+}
+
+.meta-list dd {
+  margin: 0;
+  color: #ddd;
+  min-width: 0;
+  max-width: 11rem;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+#hud-context {
+  margin: 0;
+  color: #888;
+}
+
+.hud-context-note {
+  margin: 3px 0 0;
+  color: #666;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+#hud-shortcuts,
+.hud-shortcuts-full,
+.hud-shortcuts-abbr {
+  margin: 0;
+  font-size: 10px;
+  color: #666;
+  line-height: 1.35;
+}
+
+.hud-shortcuts-abbr {
+  display: none;
+}
+
+@media (max-width: 1180px) {
+  .hud-shortcuts-full {
+    display: none;
+  }
+
+  .hud-shortcuts-abbr {
+    display: block;
+  }
+}
+
+@media (max-width: 980px) {
+  .tbtn-long {
+    display: none;
+  }
+
+  .tbtn-short {
+    display: inline;
+  }
+
+  .molecule-switcher-label {
+    min-width: 2.5rem;
+    font-size: 11px;
+  }
+}
+
+:root.toolbar-multiline .hud-shortcuts-full,
+:root.toolbar-multiline .hud-shortcuts-abbr {
+  display: none !important;
+}
+
+@media (max-height: 680px) {
+  .attribution {
+    display: none;
+  }
 }
 
 #overlay {
   position: absolute;
   inset: 0;
+  z-index: 5;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(10, 10, 18, 0.75);
-  font-size: 0.95rem;
+  background: rgba(0, 0, 0, 0.82);
+  color: #ccc;
+  font-size: 13px;
   pointer-events: none;
 }
 
@@ -116,4 +396,399 @@ body {
 
 #overlay.error {
   color: #ff8a80;
+}
+
+.toolbar {
+  left: calc(var(--panel-width, 0px) + 12px);
+  right: calc(var(--right-panel-width, 0px) + 12px);
+  bottom: max(10px, env(safe-area-inset-bottom, 0px));
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 4;
+  transition:
+    left 0.15s ease,
+    right 0.15s ease;
+}
+
+.toolbar-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 5px;
+  max-width: min(920px, 100%);
+  padding: 5px 7px;
+  border: 1px solid #242424;
+  border-radius: 8px;
+  background: rgba(8, 8, 8, 0.9);
+  backdrop-filter: blur(8px);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.03),
+    0 8px 28px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+}
+
+.toolbar-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolbar-sep {
+  width: 1px;
+  align-self: stretch;
+  min-height: 1.25rem;
+  margin: 2px 1px;
+  background: #2a2a2a;
+}
+
+.tbtn {
+  padding: 3px 7px;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  background: #121212;
+  color: #b0b0b0;
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.tbtn-short {
+  display: none;
+}
+
+.tbtn-ghost {
+  background: transparent;
+  border-color: #222;
+  color: #777;
+}
+
+.tbtn-ghost:hover {
+  background: #161616;
+  border-color: #2c2c2c;
+  color: #bbb;
+}
+
+.tbtn:hover {
+  background: #1d1d1d;
+  color: #e6e6e6;
+}
+
+.tbtn[data-active="true"] {
+  background: #2a3340;
+  border-color: #3f5468;
+  color: #d8e6f4;
+}
+
+.tbtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.molecule-switcher {
+  align-items: center;
+  gap: 2px;
+}
+
+.molecule-switcher-label {
+  min-width: 3.25rem;
+  padding: 0 4px;
+  color: #e0e0e0;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  user-select: none;
+}
+
+.tbtn-icon {
+  min-width: 1.65rem;
+  padding: 4px 6px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.toolbar-scrub {
+  display: flex;
+  align-items: center;
+  min-width: 72px;
+  flex: 1 1 88px;
+  max-width: 168px;
+  padding: 0 2px;
+  touch-action: none;
+}
+
+.toolbar-scrub.disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.toolbar-scrub input[type="range"] {
+  width: 100%;
+  height: 28px;
+  margin: 0;
+  accent-color: #6a8aaa;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.toolbar-scrub input[type="range"]:disabled {
+  cursor: not-allowed;
+}
+
+.toolbar-scrub input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: #2a2a2a;
+}
+
+.toolbar-scrub input[type="range"]::-webkit-slider-thumb {
+  margin-top: -5px;
+}
+
+.controls-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 4;
+  width: min(300px, 85vw);
+  height: 100%;
+  padding: 1rem 1.1rem;
+  background: rgba(0, 0, 0, 0.88);
+  border-right: 1px solid #222;
+  pointer-events: auto;
+  overflow-y: auto;
+}
+
+.controls-panel[hidden] {
+  display: none;
+}
+
+.physics-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 4;
+  width: min(300px, 85vw);
+  height: 100%;
+  padding: 1rem 1.1rem;
+  background: rgba(0, 0, 0, 0.88);
+  border-left: 1px solid #222;
+  pointer-events: auto;
+  overflow-y: auto;
+}
+
+.physics-panel[hidden] {
+  display: none;
+}
+
+.physics-panel h2 {
+  margin: 0 0 1rem;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #666;
+}
+
+.physics-table {
+  margin: 0;
+}
+
+.physics-table div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.15rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.physics-table dt {
+  color: #666;
+  font-weight: 400;
+  flex: 1 1 auto;
+}
+
+.physics-table dt::after {
+  content: ":";
+}
+
+.physics-table dd {
+  margin: 0;
+  color: #ddd;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  flex: 0 1 auto;
+  max-width: 58%;
+  overflow-wrap: anywhere;
+}
+
+.physics-stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.physics-stats-table th,
+.physics-stats-table td {
+  padding: 0.25rem 0.2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  text-align: right;
+}
+
+.physics-stats-table th:first-child,
+.physics-stats-table td:first-child {
+  text-align: left;
+}
+
+.physics-stats-table th {
+  color: #666;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.physics-stats-table td {
+  color: #ccc;
+}
+
+.physics-chart-wrap {
+  width: 100%;
+  margin: 0.35rem 0 0.25rem;
+  overflow: visible;
+  padding-bottom: 2px;
+}
+
+#physics-pes-chart,
+#physics-energy-ladder {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #222;
+  border-radius: 2px;
+}
+
+.controls-panel h2 {
+  margin: 0 0 1rem;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #666;
+}
+
+.panel {
+  margin-bottom: 1.25rem;
+}
+
+.panel h3 {
+  margin: 0 0 0.45rem;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #555;
+}
+
+.panel p {
+  margin: 0.2rem 0;
+  color: #aaa;
+}
+
+.panel label {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: #777;
+}
+
+.panel input[type="range"] {
+  width: 100%;
+  accent-color: #888;
+}
+
+.panel select {
+  width: 100%;
+  margin-bottom: 0.5rem;
+  padding: 0.35rem 0.45rem;
+  background: #111;
+  border: 1px solid #333;
+  color: #ddd;
+  font: inherit;
+}
+
+.panel .molecule-label {
+  margin: 0.15rem 0 0.65rem;
+  color: #ccc;
+  font-size: 13px;
+}
+
+#hud-convergence,
+#pes-chart {
+  display: block;
+  max-width: 100%;
+}
+
+#pes-chart {
+  width: 100%;
+  margin: 0.5rem 0 0.35rem;
+  border: 1px solid #222;
+  border-radius: 2px;
+}
+
+.panel .readout {
+  color: #e0e0e0;
+}
+
+.panel .hint {
+  color: #555;
+  font-size: 11px;
+}
+
+.layer-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0.35rem 0;
+  color: #aaa;
+  cursor: pointer;
+}
+
+.layer-toggle input {
+  accent-color: #888;
+}
+
+.layer-toggle.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@media (max-height: 720px) {
+  .hud-tl {
+    gap: 5px;
+  }
+
+  .brand-tag {
+    display: none;
+  }
 }

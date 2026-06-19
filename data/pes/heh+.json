@@ -1,0 +1,45 @@
+{
+  "molecule": "HeH+",
+  "points": [
+    {
+      "bond_length": 0.6,
+      "energy": -2.7722544318917737
+    },
+    {
+      "bond_length": 0.7,
+      "energy": -2.9336570522639525
+    },
+    {
+      "bond_length": 0.772,
+      "energy": -3.0134857192955513
+    },
+    {
+      "bond_length": 0.85,
+      "energy": -3.0773334768450007
+    },
+    {
+      "bond_length": 0.95,
+      "energy": -3.1357401488520686
+    },
+    {
+      "bond_length": 1.05,
+      "energy": -3.176388258782538
+    },
+    {
+      "bond_length": 1.15,
+      "energy": -3.205052301719987
+    },
+    {
+      "bond_length": 1.25,
+      "energy": -3.2254076671883363
+    },
+    {
+      "bond_length": 1.4,
+      "energy": -3.2455090927111945
+    },
+    {
+      "bond_length": 1.6,
+      "energy": -3.2603957371117147
+    }
+  ]
+}

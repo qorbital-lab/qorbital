@@ -3,7 +3,14 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>qOrbital Viewer</title>
+    <title>qOrbital</title>
+    <meta
+      name="description"
+      content="Interactive quantum chemistry orbital visualizer — VQE electron density and Bohmian trajectories in 3D."
+    />
+    <meta name="theme-color" content="#000000" />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
     <link rel="stylesheet" href="styles/viewer.css" />
     <script type="importmap">
       {
@@ -16,42 +23,345 @@
   </head>
   <body>
     <div id="app">
-      <aside id="sidebar">
-        <h1>qOrbital</h1>
-        <p class="subtitle">Quantum orbital viewer (skeleton)</p>
-
-        <section class="panel">
-          <h2>Molecule</h2>
-          <p id="molecule-label">—</p>
-          <p>Energy: <span id="energy-label">—</span></p>
-          <p class="disabled-hint">Molecule picker — issue #30</p>
-        </section>
-
-        <section class="panel">
-          <h2>Isosurface</h2>
-          <label for="isovalue-slider">Isovalue</label>
-          <input
-            id="isovalue-slider"
-            type="range"
-            min="0.005"
-            max="0.08"
-            step="0.001"
-            value="0.02"
-          />
-          <p><span id="isovalue-readout">0.020</span> (live update — issue #24)</p>
-        </section>
-
-        <section class="panel">
-          <h2>Layers</h2>
-          <p>Surface · Atoms (on)</p>
-          <p class="disabled-hint">Trajectories — issue #25</p>
-        </section>
-      </aside>
-
       <main id="viewer-wrap">
         <canvas id="viewer-canvas" aria-label="3D orbital viewer"></canvas>
+
         <div id="overlay">Loading…</div>
-        <div id="status-bar">Initializing…</div>
+
+        <header class="hud hud-tl">
+          <div class="brand-lockup">
+            <div class="brand-row">
+              <img
+                class="brand-mark"
+                src="assets/logo-mark.svg"
+                width="30"
+                height="30"
+                alt=""
+                decoding="async"
+              />
+              <p class="brand-logo" aria-label="qOrbital">
+                <span class="brand-q">q</span><span class="brand-name">Orbital</span>
+              </p>
+            </div>
+            <p class="brand-tag">electron density · vqe viz</p>
+          </div>
+          <p id="hud-backend-badge" class="backend-badge">—</p>
+          <p id="hud-phase" class="hud-phase">Step — · initializing</p>
+          <div class="reference-inset">
+            <span class="reference-caption">ρ(r) · on-axis profile (x = y = 0)</span>
+            <canvas id="hud-minimap" aria-label="Bond-axis density profile"></canvas>
+          </div>
+          <div class="reference-inset convergence-inset" id="convergence-inset" hidden>
+            <span class="reference-caption">VQE convergence</span>
+            <select id="run-select" aria-label="VQE run log"></select>
+            <canvas id="hud-convergence" aria-label="VQE energy vs iteration"></canvas>
+          </div>
+          <div class="legend" id="hud-legend">
+            <div class="legend-row">
+              <span class="legend-label">ρ(r)</span>
+              <canvas id="legend-density" class="legend-bar"></canvas>
+              <span class="legend-max" id="legend-density-max">—</span>
+            </div>
+            <div class="legend-row">
+              <span class="legend-label">|v|</span>
+              <canvas id="legend-speed" class="legend-bar"></canvas>
+              <span class="legend-max" id="legend-speed-max">—</span>
+            </div>
+            <p class="legend-scale" id="legend-scale">scene grid · 0.25 Å / div</p>
+          </div>
+        </header>
+
+        <aside class="hud hud-tr" id="hud-meta">
+          <dl class="meta-list">
+            <div><dt>Molecule</dt><dd id="meta-molecule">—</dd></div>
+            <div><dt>Bond</dt><dd id="meta-bond">—</dd></div>
+            <div><dt>Basis</dt><dd id="meta-basis">—</dd></div>
+            <div><dt>Method</dt><dd id="meta-method">—</dd></div>
+            <div><dt>Backend</dt><dd id="meta-backend">—</dd></div>
+            <div><dt>Energy</dt><dd id="meta-energy">—</dd></div>
+            <div><dt>HF ref</dt><dd id="meta-hf">—</dd></div>
+            <div><dt>FCI ref</dt><dd id="meta-fci">—</dd></div>
+            <div><dt>Isovalue</dt><dd id="meta-isovalue">—</dd></div>
+            <div><dt>Electrons</dt><dd id="meta-electron-count">—</dd></div>
+          </dl>
+        </aside>
+
+        <footer class="hud hud-bl">
+          <p id="hud-context">—</p>
+          <p id="hud-context-note" class="hud-context-note" hidden></p>
+        </footer>
+
+        <footer class="hud hud-br">
+          <p id="hud-attribution" class="attribution">
+            This effort is supported via compute credits from Qollab and IonQ.
+          </p>
+          <p id="hud-shortcuts" class="hud-shortcuts-full">
+            [ / ]: molecule · ← / →: VQE run · H: controls · P: data · C: cloud · S: surface · T: trajectories · E: ensemble · F: HF · D: Δρ · space: play/pause · drag: orbit · scroll: zoom
+          </p>
+          <p id="hud-shortcuts-abbr" class="hud-shortcuts-abbr">
+            [ ] mol · ←/→ run · H ctrl · P data · C/S/T/E/F/D · space play<br />
+            drag orbit · scroll zoom
+          </p>
+        </footer>
+
+        <nav class="hud toolbar" id="hud-toolbar" aria-label="Viewer controls">
+          <div class="toolbar-inner">
+            <div class="toolbar-group molecule-switcher" role="group" aria-label="Molecule">
+              <button
+                class="tbtn tbtn-icon"
+                id="btn-molecule-prev"
+                type="button"
+                aria-label="Previous molecule"
+                title="Previous molecule ([)"
+              >
+                ‹
+              </button>
+              <span class="molecule-switcher-label" id="molecule-toolbar-label" aria-live="polite">
+                —
+              </span>
+              <button
+                class="tbtn tbtn-icon"
+                id="btn-molecule-next"
+                type="button"
+                aria-label="Next molecule"
+                title="Next molecule (])"
+              >
+                ›
+              </button>
+            </div>
+            <span class="toolbar-sep" aria-hidden="true"></span>
+            <div class="toolbar-group toolbar-layers">
+              <button class="tbtn" id="btn-cloud" type="button" title="Toggle density cloud (C)">
+                <span class="tbtn-long">Cloud</span><span class="tbtn-short">Cld</span>
+              </button>
+              <button class="tbtn" id="btn-surface" type="button" title="Toggle isosurface (S)">
+                <span class="tbtn-long">Surface</span><span class="tbtn-short">Surf</span>
+              </button>
+              <button class="tbtn" id="btn-traj" type="button" title="Toggle trajectories (T)">
+                <span class="tbtn-long">Trajectories</span><span class="tbtn-short">Traj</span>
+              </button>
+              <button class="tbtn" id="btn-ensemble" type="button" title="Toggle trajectory ensemble (E)">
+                <span class="tbtn-long">Ensemble</span><span class="tbtn-short">Ens</span>
+              </button>
+              <button class="tbtn" id="btn-ensemble-hw" type="button" title="Hardware-only ensemble">
+                <span class="tbtn-long">HW ensemble</span><span class="tbtn-short">HW</span>
+              </button>
+              <button class="tbtn" id="btn-comparison" type="button" title="Hartree–Fock comparison (F)">
+                HF
+              </button>
+              <button class="tbtn" id="btn-play" type="button" title="Play/pause trajectories (space)">
+                Pause
+              </button>
+              <label class="toolbar-scrub" for="trajectory-scrubber">
+                <span class="sr-only">Trajectory timeline</span>
+                <input
+                  id="trajectory-scrubber"
+                  type="range"
+                  min="0"
+                  max="1000"
+                  step="1"
+                  value="0"
+                  aria-label="Trajectory timeline"
+                  disabled
+                />
+              </label>
+            </div>
+            <span class="toolbar-sep" aria-hidden="true"></span>
+            <div class="toolbar-group toolbar-presets">
+              <button
+                class="tbtn"
+                id="btn-preset-copenhagen"
+                type="button"
+                title="Static ρ isosurface"
+              >
+                <span class="tbtn-long">Copenhagen</span><span class="tbtn-short">Cph</span>
+              </button>
+              <button
+                class="tbtn"
+                id="btn-preset-bohmian"
+                type="button"
+                title="Animated Bohmian trajectories"
+              >
+                <span class="tbtn-long">Bohmian</span><span class="tbtn-short">Bohm</span>
+              </button>
+              <button
+                class="tbtn"
+                id="btn-preset-ensemble"
+                type="button"
+                title="Hardware uncertainty overlay"
+              >
+                <span class="tbtn-long">Noise ensemble</span><span class="tbtn-short">Noise</span>
+              </button>
+            </div>
+            <span class="toolbar-sep" aria-hidden="true"></span>
+            <div class="toolbar-group toolbar-panels">
+              <button
+                class="tbtn"
+                id="btn-controls"
+                type="button"
+                title="Toggle controls panel (H)"
+              >
+                <span class="tbtn-long">Controls</span><span class="tbtn-short">Ctrl</span>
+              </button>
+              <button
+                class="tbtn"
+                id="btn-data"
+                type="button"
+                title="Toggle data panel (P)"
+              >
+                Data
+              </button>
+            </div>
+            <span class="toolbar-sep" aria-hidden="true"></span>
+            <div class="toolbar-group toolbar-utils">
+              <button class="tbtn tbtn-ghost" id="btn-tour" type="button" title="Guided tour">
+                Tour
+              </button>
+              <button class="tbtn tbtn-ghost" id="btn-reset" type="button" title="Reset camera">
+                Reset
+              </button>
+              <button class="tbtn tbtn-ghost" id="btn-save" type="button" title="Save PNG screenshot">
+                PNG
+              </button>
+            </div>
+          </div>
+        </nav>
+
+        <aside id="controls-panel" class="controls-panel" hidden>
+          <h2>Controls</h2>
+
+          <section class="panel" id="panel-isosurface" hidden>
+            <h3>Isosurface</h3>
+            <label for="isovalue-slider">Enclosed probability</label>
+            <input
+              id="isovalue-slider"
+              type="range"
+              min="50"
+              max="99"
+              step="1"
+              value="90"
+            />
+            <p class="readout"><span id="isovalue-readout">90% · ρ — a.u.</span></p>
+            <p class="hint">Live isovalue from grid density (probability-enclosing level)</p>
+          </section>
+
+          <section class="panel">
+            <h3>Layers</h3>
+            <label class="layer-toggle">
+              <input id="toggle-cloud" type="checkbox" />
+              Probability cloud (ρ samples)
+            </label>
+            <label class="layer-toggle" id="surface-toggle-label">
+              <input id="toggle-surface" type="checkbox" checked />
+              Iso-surface shell
+            </label>
+            <label class="layer-toggle">
+              <input id="toggle-atoms" type="checkbox" checked />
+              Nuclear centers
+            </label>
+            <label class="layer-toggle">
+              <input id="toggle-trajectories" type="checkbox" checked />
+              Bohmian trajectories
+            </label>
+            <label class="layer-toggle">
+              <input id="toggle-ensemble" type="checkbox" />
+              Hardware-noise ensemble
+            </label>
+            <p id="ensemble-hint" class="hint">Histogram uncertainty field + overlaid trajectories</p>
+            <label class="layer-toggle">
+              <input id="toggle-comparison" type="checkbox" />
+              HF reference density (overlay)
+            </label>
+            <label class="layer-toggle">
+              <input id="toggle-comparison-diff" type="checkbox" />
+              Δρ (VQE − HF)
+            </label>
+            <p id="comparison-hint" class="hint">Classical Hartree–Fock comparison grid</p>
+          </section>
+
+          <section class="panel">
+            <h3>Molecule</h3>
+            <label for="molecule-select">Species</label>
+            <select id="molecule-select" aria-label="Molecule picker"></select>
+            <p id="molecule-label" class="molecule-label">—</p>
+            <label for="bond-slider">Bond length</label>
+            <input
+              id="bond-slider"
+              type="range"
+              min="0.55"
+              max="1.5"
+              step="0.01"
+              value="0.735"
+            />
+            <p class="readout" id="bond-readout">0.74 Å</p>
+            <canvas id="pes-chart" aria-label="Potential energy surface"></canvas>
+            <p class="hint">Density at equilibrium bundle; energy from cached PES</p>
+          </section>
+        </aside>
+
+        <aside id="physics-panel" class="physics-panel" hidden>
+          <h2>Data</h2>
+
+          <section class="panel">
+            <h3>Energy @ R</h3>
+            <dl class="physics-table" id="physics-energy-table"></dl>
+            <p class="hint" id="physics-energy-note">—</p>
+          </section>
+
+          <section class="panel">
+            <h3>Energy ladder</h3>
+            <div class="physics-chart-wrap">
+              <canvas
+                id="physics-energy-ladder"
+                aria-label="HF, exact, and VQE energies at the current geometry"
+              ></canvas>
+            </div>
+            <p class="hint" id="physics-ladder-note">sto-3g · mHa gaps between levels</p>
+          </section>
+
+          <section class="panel">
+            <h3>PES</h3>
+            <div class="physics-chart-wrap">
+              <canvas
+                id="physics-pes-chart"
+                aria-label="Exact potential energy surface"
+              ></canvas>
+            </div>
+            <p class="hint">exact diag · sto-3g · bond marker tracks preview R</p>
+          </section>
+
+          <section class="panel" id="physics-run-section" hidden>
+            <h3>Selected run</h3>
+            <dl class="physics-table" id="physics-run-provenance"></dl>
+          </section>
+
+          <section class="panel">
+            <h3>Dynamics</h3>
+            <dl class="physics-table" id="physics-dynamics"></dl>
+            <p class="hint" id="physics-dynamics-note"></p>
+          </section>
+
+          <section class="panel" id="physics-hardware-section" hidden>
+            <h3>Hardware campaign</h3>
+            <table class="physics-stats-table" id="physics-hardware-table">
+              <thead>
+                <tr>
+                  <th>Backend</th>
+                  <th>Runs</th>
+                  <th>E mean</th>
+                  <th>E std</th>
+                  <th>Δ mHa</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </section>
+
+          <section class="panel">
+            <h3>Grid</h3>
+            <dl class="physics-table" id="physics-grid"></dl>
+          </section>
+        </aside>
       </main>
     </div>
 

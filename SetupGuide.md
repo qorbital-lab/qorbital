@@ -347,6 +347,26 @@ labels: type: hardware
 ## Notes
 ```
 
+### 6.4 Credentials & backend selection
+
+IonQ access is keyed from the `IONQ_API_KEY` environment variable (canonical;
+`QISKIT_IONQ_API_TOKEN` / `IONQ_API_TOKEN` are accepted fallbacks). Keys live in
+the environment only — never in code, configs, or committed files. CI has no key,
+so hardware-touching tests skip cleanly (see §7).
+
+`--backend` (CLI) / `Backend` enum → device:
+
+| `--backend` | Device | Key required |
+|-------------|--------|--------------|
+| `aer` | local statevector | no |
+| `ionq_sim` | `ionq_simulator` (IonQ cloud) | yes |
+| `ionq_forte` | `ionq_qpu.forte-enterprise-1` | yes |
+
+The VQE optimizer always runs locally; IonQ is used only to evaluate/submit the
+converged circuit (credits spent once per run, not per optimizer iteration). See
+the **IonQ credentials & backends** section of the [README](README.md) for the
+canonical setup walkthrough (WSL `export`, worked `submit` example).
+
 ---
 
 ## 7. CI/CD on GitHub Actions

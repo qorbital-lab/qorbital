@@ -1,0 +1,270 @@
+from __future__ import annotations
+
+from collections.abc import Callable
+from dataclasses import dataclass
+
+import numpy as np
+from numpy.typing import NDArray
+from qiskit.primitives import BaseEstimatorV2
+from qiskit.quantum_info import Statevector
+from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
+from qiskit_algorithms import VQE
+from qiskit_algorithms.optimizers import COBYLA, SLSQP
+from qiskit_nature.second_q.circuit.library import UCCSD, HartreeFock
+
+from qorbital.chemistry.hamiltonian import (
+    QubitHamiltonian,
+    QubitMapping,
+    build_hamiltonian,
+    make_mapper,
+)
+from qorbital.vqe.backends import Backend, make_local_estimator
+
+
+@dataclass
+class VQEIterationData:
+    """Snapshot from one VQE optimisation iteration."""
+
+    iteration: int
+    parameters: NDArray[np.float64]
+    energy: float  # electronic energy (no nuclear repulsion)
+    metadata: dict
+
+
+@dataclass
+class VQEResult:
+    """Container for VQE solver output."""
+
+    total_energy: float  # electronic + nuclear repulsion
+    electronic_energy: float  # raw VQE eigenvalue
+    nuclear_repulsion_energy: float  # constant offset
+    optimal_parameters: NDArray[np.float64]  # optimised ansatz params
+    optimal_statevector: NDArray[np.complex128]  # final statevector array
+    num_iterations: int  # optimizer eval count
+    convergence_history: list[VQEIterationData]  # per-iteration snapshots
+    optimizer_name: str  # e.g. "SLSQP"
+    ansatz_name: str  # e.g. "UCCSD"
+    mapping: QubitMapping  # mapper that produced optimal_statevector
+    two_qubit_reduction: bool  # parity 2-qubit reduction flag
+
+
+OPTIMIZER_REGISTRY: dict[str, type] = {
+    "SLSQP": SLSQP,
+    "COBYLA": COBYLA,
+}
+
+
+def _build_ansatz(qubit_hamiltonian: QubitHamiltonian) -> UCCSD:
+    mapper = make_mapper(
+        qubit_hamiltonian.mapping,
+        qubit_hamiltonian.num_particles,
+        qubit_hamiltonian.two_qubit_reduction,
+    )
+
+    initial_state = HartreeFock(
+        num_spatial_orbitals=qubit_hamiltonian.num_spatial_orbitals,
+        num_particles=qubit_hamiltonian.num_particles,
+        qubit_mapper=mapper,
+    )
+
+    ansatz = UCCSD(
+        num_spatial_orbitals=qubit_hamiltonian.num_spatial_orbitals,
+        num_particles=qubit_hamiltonian.num_particles,
+        qubit_mapper=mapper,
+        initial_state=initial_state,
+    )
+
+    return ansatz
+
+
+def _make_callback(
+    history: list[VQEIterationData],
+    user_callback: Callable[[VQEIterationData], None] | None,
+) -> Callable[[int, np.ndarray, float, dict], None]:
+    def _cb(
+        eval_count: int, parameters: np.ndarray, mean: float, metadata: dict
+    ) -> None:
+        snapshot = VQEIterationData(
+            iteration=eval_count,
+            parameters=parameters.copy(),
+            energy=mean,
+            metadata=metadata if isinstance(metadata, dict) else {},
+        )
+        history.append(snapshot)
+        if user_callback is not None:
+            user_callback(snapshot)
+
+    return _cb
+
+
+def run_vqe_from_hamiltonian(
+    qubit_hamiltonian: QubitHamiltonian,
+    optimizer: str = "SLSQP",
+    max_iterations: int = 100,
+    callback: Callable[[VQEIterationData], None] | None = None,
+    backend: Backend | str = Backend.AER,
+    shots: int = 1024,
+    estimator: BaseEstimatorV2 | None = None,
+) -> VQEResult:
+    ansatz = _build_ansatz(qubit_hamiltonian)
+
+    optimizer_name = optimizer.upper()
+    if optimizer_name not in OPTIMIZER_REGISTRY:
+        raise ValueError(
+            f"Unknown optimizer {optimizer!r}. Supported: {list(OPTIMIZER_REGISTRY)}"
+        )
+    opt = OPTIMIZER_REGISTRY[optimizer_name](maxiter=max_iterations)
+
+    # Locked decision: the optimizer always runs on the local statevector
+    # simulator regardless of `backend`.  IonQ credits are spent only on the
+    # converged circuit (evaluation/submission, handled in submit.py / B9), so
+    # `backend`/`shots` do not steer the optimization loop here.
+    if estimator is None:
+        estimator = make_local_estimator()
+
+    convergence_history: list[VQEIterationData] = []
+    vqe_callback = _make_callback(convergence_history, callback)
+
+    initial_point = np.zeros(ansatz.num_parameters)
+
+    vqe = VQE(
+        estimator=estimator,
+        ansatz=ansatz,
+        optimizer=opt,
+        callback=vqe_callback,
+        initial_point=initial_point,
+    )
+    result = vqe.compute_minimum_eigenvalue(operator=qubit_hamiltonian.qubit_op)
+
+    bound_circuit = ansatz.assign_parameters(result.optimal_point)
+    sv_array = np.array(Statevector(bound_circuit))
+
+    electronic_energy = result.eigenvalue.real
+    total_energy = electronic_energy + qubit_hamiltonian.nuclear_repulsion_energy
+
+    return VQEResult(
+        total_energy=total_energy,
+        electronic_energy=electronic_energy,
+        nuclear_repulsion_energy=qubit_hamiltonian.nuclear_repulsion_energy,
+        optimal_parameters=np.array(result.optimal_point),
+        optimal_statevector=sv_array,
+        num_iterations=result.cost_function_evals,
+        convergence_history=convergence_history,
+        optimizer_name=optimizer_name,
+        ansatz_name="UCCSD",
+        mapping=qubit_hamiltonian.mapping,
+        two_qubit_reduction=qubit_hamiltonian.two_qubit_reduction,
+    )
+
+
+def evaluate_energy_on_estimator(
+    qubit_hamiltonian: QubitHamiltonian,
+    parameters: NDArray[np.float64],
+    estimator: BaseEstimatorV2,
+    *,
+    shots: int | None = None,
+) -> float:
+    """Electronic ``<H>`` for the converged ansatz, evaluated on ``estimator``.
+
+    Used to submit the converged circuit to a real backend (e.g. an IonQ
+    primitive from :func:`qorbital.vqe.backends.make_estimator`).  The ansatz is
+    rebuilt with :func:`_build_ansatz` so the mapper/qubit count matches the one
+    that produced ``parameters``.
+
+    ``BackendEstimatorV2`` does **not** lower high-level gates, so the raw UCCSD
+    ``EvolvedOps`` block is rejected by IonQ.  We therefore transpile to the
+    backend's native gateset first (the "ISA circuit" pattern) and map the
+    observable onto the transpiled layout before running; the primitive then
+    groups commuting Paulis, submits, and polls internally.
+
+    Returns the raw electronic eigenvalue (no nuclear-repulsion offset); the
+    caller adds ``qubit_hamiltonian.nuclear_repulsion_energy`` for total energy.
+
+    ``shots`` controls the device shot count. ``BackendEstimatorV2`` derives shots
+    from precision as ``ceil(1/precision**2)`` and *ignores* the backend's ``shots``
+    option, so we pass ``precision = shots**-0.5`` to actually honour the request
+    (without it every run defaults to 4096 shots). ``None`` leaves the default.
+    """
+    ansatz = _build_ansatz(qubit_hamiltonian)
+    pass_manager = generate_preset_pass_manager(
+        optimization_level=1, backend=estimator.backend
+    )
+    isa_ansatz = pass_manager.run(ansatz)
+    observable = qubit_hamiltonian.qubit_op.apply_layout(isa_ansatz.layout)
+    run_kwargs = {} if shots is None else {"precision": float(shots) ** -0.5}
+    job = estimator.run([(isa_ansatz, observable, [parameters])], **run_kwargs)
+    evs = np.asarray(job.result()[0].data.evs).reshape(-1)
+    return float(evs[0])
+
+
+def statevector_from_params(
+    molecule: str,
+    bond: float,
+    charge: int,
+    spin: int,
+    final_params: NDArray[np.float64],
+    mapping: str = "jordan_wigner",
+    two_qubit_reduction: bool = False,
+) -> NDArray[np.complex128]:
+    """Rebuild a statevector from a run's recorded final UCCSD parameters.
+
+    This is the deterministic, noiseless *reference* density path: a clean Aer/
+    statevector rebuild from the converged parameters, distinct from the noisy
+    hardware 1-RDM measurement (:func:`qorbital.vqe.hardware_rdm.measure_rdm1`).
+    Defaults to Jordan-Wigner (no 2-qubit reduction) because the recorded UCCSD
+    parameters are mapper-agnostic for the registry molecules and the downstream
+    density grid is simplest under JW; pass ``mapping`` / ``two_qubit_reduction``
+    to replay under the run's original mapper.
+    """
+    qh = build_hamiltonian(
+        molecule,
+        bond_length=bond,
+        charge=charge,
+        spin=spin,
+        mapping=mapping,
+        two_qubit_reduction=two_qubit_reduction,
+    )
+    ansatz = _build_ansatz(qh)
+    params = np.asarray(final_params, dtype=float)
+    if params.shape[0] != ansatz.num_parameters:
+        raise ValueError(
+            f"{molecule}: run has {params.shape[0]} params but {mapping} UCCSD "
+            f"ansatz expects {ansatz.num_parameters}; cannot replay."
+        )
+    bound = ansatz.assign_parameters(params)
+    return np.asarray(Statevector(bound), dtype=np.complex128)
+
+
+def run_vqe(
+    atoms: str,
+    bond_length: float | None = None,
+    basis: str = "sto-3g",
+    charge: int = 0,
+    spin: int = 0,
+    mapping: str = "jordan_wigner",
+    two_qubit_reduction: bool = False,
+    optimizer: str = "SLSQP",
+    max_iterations: int = 100,
+    callback: Callable[[VQEIterationData], None] | None = None,
+    backend: Backend | str = Backend.AER,
+    shots: int = 1024,
+    estimator: BaseEstimatorV2 | None = None,
+) -> VQEResult:
+    qh = build_hamiltonian(
+        atoms,
+        bond_length=bond_length,
+        basis=basis,
+        charge=charge,
+        spin=spin,
+        mapping=mapping,
+        two_qubit_reduction=two_qubit_reduction,
+    )
+    return run_vqe_from_hamiltonian(
+        qh,
+        optimizer=optimizer,
+        max_iterations=max_iterations,
+        callback=callback,
+        backend=backend,
+        shots=shots,
+        estimator=estimator,
+    )

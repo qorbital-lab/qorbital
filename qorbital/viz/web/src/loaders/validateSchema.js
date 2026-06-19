@@ -51,4 +51,22 @@ export function validateBundle(bundle) {
   } else {
     throw new Error(`Unknown density kind: ${kind}`);
   }
+
+  if (data.trajectories != null) {
+    if (typeof data.trajectories !== "object") {
+      throw new Error("trajectories must be an object when present");
+    }
+    const trajectories = /** @type {Record<string, unknown>} */ (
+      data.trajectories
+    );
+    if (
+      trajectories.particles == null ||
+      trajectories.steps == null ||
+      !trajectories.paths
+    ) {
+      throw new Error(
+        "TrajectorySet requires particles, steps, and paths when present",
+      );
+    }
+  }
 }
