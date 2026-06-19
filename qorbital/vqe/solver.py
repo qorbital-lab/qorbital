@@ -7,6 +7,7 @@ import numpy as np
 from numpy.typing import NDArray
 from qiskit.primitives import BaseEstimatorV2
 from qiskit.quantum_info import Statevector
+from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 from qiskit_algorithms import VQE
 from qiskit_algorithms.optimizers import COBYLA, SLSQP
 from qiskit_nature.second_q.circuit.library import UCCSD, HartreeFock
@@ -154,6 +155,38 @@ def run_vqe_from_hamiltonian(
         mapping=qubit_hamiltonian.mapping,
         two_qubit_reduction=qubit_hamiltonian.two_qubit_reduction,
     )
+
+
+def evaluate_energy_on_estimator(
+    qubit_hamiltonian: QubitHamiltonian,
+    parameters: NDArray[np.float64],
+    estimator: BaseEstimatorV2,
+) -> float:
+    """Electronic ``<H>`` for the converged ansatz, evaluated on ``estimator``.
+
+    Used to submit the converged circuit to a real backend (e.g. an IonQ
+    primitive from :func:`qorbital.vqe.backends.make_estimator`).  The ansatz is
+    rebuilt with :func:`_build_ansatz` so the mapper/qubit count matches the one
+    that produced ``parameters``.
+
+    ``BackendEstimatorV2`` does **not** lower high-level gates, so the raw UCCSD
+    ``EvolvedOps`` block is rejected by IonQ.  We therefore transpile to the
+    backend's native gateset first (the "ISA circuit" pattern) and map the
+    observable onto the transpiled layout before running; the primitive then
+    groups commuting Paulis, submits, and polls internally.
+
+    Returns the raw electronic eigenvalue (no nuclear-repulsion offset); the
+    caller adds ``qubit_hamiltonian.nuclear_repulsion_energy`` for total energy.
+    """
+    ansatz = _build_ansatz(qubit_hamiltonian)
+    pass_manager = generate_preset_pass_manager(
+        optimization_level=1, backend=estimator.backend
+    )
+    isa_ansatz = pass_manager.run(ansatz)
+    observable = qubit_hamiltonian.qubit_op.apply_layout(isa_ansatz.layout)
+    job = estimator.run([(isa_ansatz, observable, [parameters])])
+    evs = np.asarray(job.result()[0].data.evs).reshape(-1)
+    return float(evs[0])
 
 
 def run_vqe(
