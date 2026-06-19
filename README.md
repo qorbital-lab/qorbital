@@ -48,6 +48,51 @@ uv sync
 uv sync --all-extras
 ```
 
+### IonQ credentials & backends
+
+VQE runs on a configurable backend. The default (`aer`) is a fast local exact
+simulator and needs no credentials — use it for development and the web demo.
+The IonQ backends talk to the IonQ cloud and require an API key.
+
+**API key.** Get a key from the [IonQ console](https://cloud.ionq.com/settings/keys)
+and expose it via the `IONQ_API_KEY` environment variable (the canonical name;
+`QISKIT_IONQ_API_TOKEN` and `IONQ_API_TOKEN` are also accepted). **Never commit
+a key or paste it into code** — environment variables only.
+
+On WSL / Linux / macOS:
+
+```bash
+# For the current shell session
+export IONQ_API_KEY="ionq_xxxxxxxxxxxxxxxxxxxxxxxx"
+
+# Persist it across sessions (bash; use ~/.zshrc for zsh)
+echo 'export IONQ_API_KEY="ionq_xxxxxxxxxxxxxxxxxxxxxxxx"' >> ~/.bashrc
+
+# Or pass it inline for a one-off command
+IONQ_API_KEY="ionq_..." uv run python -m qorbital.vqe.submit --molecule h2 --backend ionq_sim
+```
+
+**Backends.** Select with `--backend` (CLI) or the `Backend` enum:
+
+| `--backend` | Device | Key required | Use |
+|-------------|--------|--------------|-----|
+| `aer` | local statevector | no | default — fast exact simulation |
+| `ionq_sim` | `ionq_simulator` (IonQ cloud) | yes | IonQ cloud simulator |
+| `ionq_aria` | `ionq_qpu.aria-1` | yes | real trapped-ion QPU (spends credits) |
+
+**Optimize-local / submit-converged model.** The VQE optimizer **always** runs
+on the local statevector simulator — queue latency and shot noise would distort
+convergence for these classically-trivial molecules, and the credits add no
+scientific value there. IonQ is used only to *evaluate / submit the converged
+circuit*, so credits are spent once per run, not once per optimizer iteration.
+
+> **Current state:** `submit --backend ionq_sim` optimizes locally and writes a
+> run log tagged with the chosen backend; dispatching the converged circuit to
+> IonQ for measurement is being wired up next, so a key is not yet strictly
+> required to run `submit`. A key *is* required to construct an IonQ estimator
+> directly (`qorbital.vqe.make_estimator(Backend.IONQ_SIM)`), which raises a
+> clear error without one.
+
 ### Run the web demo
 
 **Live:** [qorbital-lab.github.io/qorbital](https://qorbital-lab.github.io/qorbital/) (auto-deploys on push to `integration/3day`)
@@ -110,8 +155,9 @@ PySCF integrals → Hamiltonian (JW/parity) → VQE (Aer / IonQ-sim) → density
 | `qorbital.viz.trajectories` | ADR-004 bundle export for the web viewer |
 
 ```bash
-# Submit a VQE run (sim-only: uses Aer shot noise as IonQ stand-in)
-python -m qorbital.vqe.submit --molecule h2 --backend ionq_sim --shots 1000
+# Submit a VQE run — optimizes locally and writes data/runs/h2/<run_id>.json
+# (see "IonQ credentials & backends" above for the optimize-local model)
+IONQ_API_KEY="ionq_..." python -m qorbital.vqe.submit --molecule h2 --backend ionq_sim --shots 1000
 
 # Generate H₂ + HeH⁺ visualization bundles
 python scripts/generate_bundles.py
@@ -134,7 +180,7 @@ import qorbital
 mol = qorbital.Molecule("H2", bond_length=0.74)
 
 # Run VQE to find the ground state
-result = qorbital.run_vqe(mol, backend="ionq_simulator")
+result = qorbital.run_vqe(mol, backend="ionq_sim")
 
 # Compute the electron density grid
 density = qorbital.compute_density(result)
@@ -225,7 +271,7 @@ qorbital/
 - [qiskit-ionq](https://qiskit-community.github.io/qiskit-ionq/) 0.5+ (IonQ provider, `<1` for Qiskit 1.x compat)
 - [PySCF](https://pyscf.org) 2.4+
 - NumPy 1.24+, SciPy 1.10+
-- IonQ account (for hardware runs; simulator available without one)
+- IonQ account + `IONQ_API_KEY` (for IonQ backends; see [IonQ credentials & backends](#ionq-credentials--backends). The local `aer` backend needs no account)
 - Modern browser with WebGL support (for the web demo)
 
 ## Contributing
