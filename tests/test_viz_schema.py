@@ -142,8 +142,11 @@ def test_trajectory_set_superposition_round_trip():
 
 
 def test_legacy_bundle_loads_without_superposition_fields():
+    # Dedicated legacy fixture (fixed dt, no superposition metadata). The live
+    # data/bundles/h2/h2_bundle.json is now a modern superposition bundle, so
+    # back-compat must be checked against a stable hand-pinned legacy bundle.
     root = Path(__file__).resolve().parents[1]
-    fixture = root / "data" / "bundles" / "h2" / "h2_bundle.json"
+    fixture = root / "tests" / "fixtures" / "legacy_h2_bundle.json"
     loaded = load_bundle(fixture)
     assert loaded.trajectories is not None
     traj = loaded.trajectories
