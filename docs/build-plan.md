@@ -97,6 +97,7 @@ Dependencies are noted per segment. Within a phase, segments can mostly run in p
 **Acceptance:** round-trip serialize/deserialize test; existing bundles still load (back-compat defaults for missing fields).
 
 ### [F2] Period-aware playback + timeline scrubber
+**Status:** DONE
 **Scope:** Drive the animation loop from the bundle's real `period` instead of the hardcoded `TRAJECTORY_PERIOD_SECONDS=7` (`QorbitalApp.js:151-164`). Add a timeline scrubber slider → manual `progress01` (the only missing playback control; play/pause already exists).
 **Acceptance:** one render loop = one physical period; scrubbing updates trajectory positions live; HUD shows `t / period`.
 

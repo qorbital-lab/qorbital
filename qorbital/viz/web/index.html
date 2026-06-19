@@ -100,6 +100,19 @@
             <button class="tbtn" id="btn-traj" type="button">Trajectories</button>
             <button class="tbtn" id="btn-ensemble" type="button">Ensemble</button>
             <button class="tbtn" id="btn-play" type="button">Pause</button>
+            <label class="toolbar-scrub" for="trajectory-scrubber">
+              <span class="sr-only">Trajectory timeline</span>
+              <input
+                id="trajectory-scrubber"
+                type="range"
+                min="0"
+                max="1000"
+                step="1"
+                value="0"
+                aria-label="Trajectory timeline"
+                disabled
+              />
+            </label>
           </div>
           <span class="toolbar-sep"></span>
           <div class="toolbar-group">

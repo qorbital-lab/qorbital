@@ -27,8 +27,35 @@ import { DENSITY_COLORMAP, SPEED_COLORMAP } from "../util/colorMaps.js";
 import { disposeObject } from "../util/dispose.js";
 import { initialState } from "./state.js";
 
-/** Wall-clock seconds for one full pass of the Bohmian trajectory animation. */
-const TRAJECTORY_PERIOD_SECONDS = 7;
+/** Wall-clock seconds for one physical-period loop of trajectory playback. */
+const PLAYBACK_PERIOD_SECONDS = 7;
+
+const SCRUBBER_STEPS = 1000;
+
+/**
+ * Resolve physical oscillation period and trajectory sample span (a.u.).
+ *
+ * @param {Record<string, unknown>} trajectories
+ * @returns {{ period: number, dataDuration: number }}
+ */
+function resolveTrajectoryTiming(trajectories) {
+  const steps = Number(trajectories.steps);
+  const dt = Number(trajectories.dt ?? 0.1);
+  const times = Array.isArray(trajectories.times) ? trajectories.times : null;
+  const dataDuration =
+    times != null && times.length > 1
+      ? Number(times[times.length - 1]) - Number(times[0])
+      : steps * dt;
+  let period = Number(trajectories.period);
+  if (!Number.isFinite(period) || period <= 0) {
+    const omega = Number(trajectories.omega);
+    period =
+      Number.isFinite(omega) && omega > 0
+        ? (2 * Math.PI) / omega
+        : dataDuration;
+  }
+  return { period, dataDuration };
+}
 
 export class QorbitalApp {
   /**
@@ -46,12 +73,14 @@ export class QorbitalApp {
     this._trajectoryValues = null;
     /** @type {Array<THREE.Group>} */
     this._animatedGroups = [];
-    this._trajDuration = 0;
+    this._trajPeriod = 0;
+    this._trajDataDuration = 0;
     this._ensembleCount = 0;
     /** @type {Awaited<ReturnType<typeof loadEnsemble>>} */
     this._ensemble = null;
     this._trajTime = 0;
     this._trajProgress = 0;
+    this._isScrubbing = false;
     this._hudPhaseBase = "";
     this._densityPeak = 0;
     this._speedPeak = 0;
@@ -81,6 +110,7 @@ export class QorbitalApp {
     this._wireMoleculeControls();
     this._wireKeyboardShortcuts();
     this._wireToolbar();
+    this._wireTrajectoryScrubber();
 
     this.sceneManager.addTicker((elapsed, delta) => this._onTick(elapsed, delta));
     this.sceneManager.onCameraChange = () => this._writeUrl();
@@ -152,26 +182,141 @@ export class QorbitalApp {
     if (this._animatedGroups.length === 0) {
       return;
     }
-    if (this.state.trajectoryPlaying) {
+    if (this.state.trajectoryPlaying && !this._isScrubbing) {
       this._trajTime += delta;
     }
-    const cycles = this._trajTime / TRAJECTORY_PERIOD_SECONDS;
+    const cycles = this._trajTime / PLAYBACK_PERIOD_SECONDS;
     this._trajProgress = ((cycles % 1) + 1) % 1;
-    for (const group of this._animatedGroups) {
-      group.userData.update(this._trajProgress);
-    }
+    this._applyTrajectoryProgress();
+    this._syncScrubberUi();
     this._renderPhase();
   }
 
+  _applyTrajectoryProgress() {
+    const dataDuration =
+      this._trajDataDuration > 0 ? this._trajDataDuration : this._trajPeriod;
+    const tPhysical = this._trajProgress * this._trajPeriod;
+    const pathProgress =
+      dataDuration > 0 ? Math.min(1, tPhysical / dataDuration) : this._trajProgress;
+    for (const group of this._animatedGroups) {
+      group.userData.update(pathProgress);
+    }
+  }
+
   _renderPhase() {
-    if (this._animatedGroups.length > 0) {
-      const tNow = this._trajProgress * this._trajDuration;
-      const playState = this.state.trajectoryPlaying ? "playing" : "paused";
+    if (this._animatedGroups.length > 0 && this._trajPeriod > 0) {
+      const tNow = this._trajProgress * this._trajPeriod;
+      let playState = this.state.trajectoryPlaying ? "playing" : "paused";
+      if (this._isScrubbing) {
+        playState = "scrubbing";
+      }
       this.elements.hudPhase.textContent =
-        `t ${tNow.toFixed(1)}/${this._trajDuration.toFixed(1)} a.u. · ${playState} · ${this._hudPhaseBase}`;
+        `t ${tNow.toFixed(1)}/${this._trajPeriod.toFixed(1)} a.u. · ${playState} · ${this._hudPhaseBase}`;
     } else {
       this.elements.hudPhase.textContent = this._hudPhaseBase;
     }
+  }
+
+  /**
+   * @param {Record<string, unknown>} bundle
+   */
+  _applyTrajectoryTimingFromBundle(bundle) {
+    const traj = /** @type {Record<string, unknown> | undefined} */ (
+      bundle.trajectories
+    );
+    if (traj) {
+      const timing = resolveTrajectoryTiming(traj);
+      this._trajPeriod = timing.period;
+      this._trajDataDuration = timing.dataDuration;
+    } else if (this._animatedGroups.length > 0) {
+      const duration = Number(this._animatedGroups[0].userData.duration ?? 0);
+      this._trajPeriod = duration > 0 ? duration : 0;
+      this._trajDataDuration = this._trajPeriod;
+    } else {
+      this._trajPeriod = 0;
+      this._trajDataDuration = 0;
+    }
+    this._resetTrajectoryPlayback();
+  }
+
+  _resetTrajectoryPlayback() {
+    this._trajTime = 0;
+    this._trajProgress = 0;
+    this._applyTrajectoryProgress();
+    this._syncScrubberUi();
+  }
+
+  _syncScrubberUi() {
+    const scrubber = /** @type {HTMLInputElement | undefined} */ (
+      this.elements.trajectoryScrubber
+    );
+    if (!scrubber) {
+      return;
+    }
+    const active = this._animatedGroups.length > 0 && this._trajPeriod > 0;
+    scrubber.disabled = !active;
+    scrubber.closest(".toolbar-scrub")?.classList.toggle("disabled", !active);
+    if (!this._isScrubbing) {
+      scrubber.value = String(Math.round(this._trajProgress * SCRUBBER_STEPS));
+    }
+    scrubber.setAttribute("aria-valuemin", "0");
+    scrubber.setAttribute("aria-valuemax", String(SCRUBBER_STEPS));
+    scrubber.setAttribute(
+      "aria-valuenow",
+      String(Math.round(this._trajProgress * SCRUBBER_STEPS)),
+    );
+    scrubber.setAttribute(
+      "aria-valuetext",
+      `${(this._trajProgress * this._trajPeriod).toFixed(2)} a.u.`,
+    );
+  }
+
+  _wireTrajectoryScrubber() {
+    const scrubber = /** @type {HTMLInputElement | undefined} */ (
+      this.elements.trajectoryScrubber
+    );
+    if (!scrubber) {
+      return;
+    }
+
+    const setScrubbing = (active) => {
+      this._isScrubbing = active;
+      this._renderPhase();
+    };
+
+    const applyScrubValue = () => {
+      this._trajProgress = Number(scrubber.value) / SCRUBBER_STEPS;
+      this._trajTime = this._trajProgress * PLAYBACK_PERIOD_SECONDS;
+      this._applyTrajectoryProgress();
+      this._syncScrubberUi();
+      this._renderPhase();
+    };
+
+    scrubber.addEventListener("pointerdown", () => setScrubbing(true));
+    scrubber.addEventListener("pointerup", () => setScrubbing(false));
+    scrubber.addEventListener("pointercancel", () => setScrubbing(false));
+    scrubber.addEventListener("input", applyScrubValue);
+
+    scrubber.addEventListener("keydown", (event) => {
+      if (scrubber.disabled) {
+        return;
+      }
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        scrubber.value = String(
+          Math.max(0, Number(scrubber.value) - SCRUBBER_STEPS * 0.01),
+        );
+        applyScrubValue();
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        scrubber.value = String(
+          Math.min(SCRUBBER_STEPS, Number(scrubber.value) + SCRUBBER_STEPS * 0.01),
+        );
+        applyScrubValue();
+      }
+    });
+
+    this._syncScrubberUi();
   }
 
   _populateMoleculeSelect() {
@@ -787,7 +932,6 @@ export class QorbitalApp {
         dt,
       );
       this._animatedGroups.push(paths);
-      this._trajDuration = Number(paths.userData.duration ?? steps * dt);
       this._speedPeak = Math.max(
         this._speedPeak,
         Number(paths.userData.maxSpeed ?? 0),
@@ -799,7 +943,6 @@ export class QorbitalApp {
       const ensemble = createEnsembleTrajectories(this._ensemble.members);
       this._animatedGroups.push(ensemble);
       this._ensembleCount = this._ensemble.members.length;
-      this._trajDuration = Number(ensemble.userData.duration ?? this._trajDuration);
       this._speedPeak = Math.max(
         this._speedPeak,
         Number(ensemble.userData.maxSpeed ?? 0),
@@ -807,6 +950,7 @@ export class QorbitalApp {
       this._contentGroup.add(ensemble);
     }
 
+    this._applyTrajectoryTimingFromBundle(bundle);
     this.sceneManager.setContent(this._contentGroup);
     this.updateHud(bundle);
     this._syncToolbarClearance();

@@ -54,6 +54,7 @@ try {
     toggleTrajectories: requireElement("toggle-trajectories"),
     toggleEnsemble: requireElement("toggle-ensemble"),
     ensembleHint: requireElement("ensemble-hint"),
+    trajectoryScrubber: requireElement("trajectory-scrubber"),
   });
 
   window.qorbitalApp = app;
