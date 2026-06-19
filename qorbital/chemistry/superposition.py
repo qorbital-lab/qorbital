@@ -15,18 +15,21 @@ from qorbital.chemistry.density import (
     WavefunctionGrid,
     compute_density,
 )
-from qorbital.chemistry.eigenstates import lowest_eigenstates
 from qorbital.chemistry.hamiltonian import (
     QubitHamiltonian,
     QubitMapping,
-    build_hamiltonian,
 )
 from qorbital.chemistry.integrals import MolecularIntegrals, compute_integrals
 from qorbital.chemistry.molecules import get_molecule_params
 
 _HBAR = 1.0
 _DEFAULT_C = 1.0 / math.sqrt(2.0)
-SuperpositionSource = Literal["exact_diag", "hardware_ground+exact_excited"]
+SuperpositionSource = Literal[
+    "exact_diag",
+    "hardware_ground+exact_excited",
+    "hf_homo_lumo",
+    "hardware_ground+hf_lumo",
+]
 
 
 @dataclass(frozen=True)
@@ -189,28 +192,41 @@ def build_superposition_state(
     padding: float = 3.0,
     mapping: QubitMapping | str | None = None,
     two_qubit_reduction: bool | None = None,
-    source: SuperpositionSource = "exact_diag",
+    source: SuperpositionSource = "hf_homo_lumo",
     c0: float | None = None,
     c1: float | None = None,
     qubit_hamiltonian: QubitHamiltonian | None = None,
     integrals: MolecularIntegrals | None = None,
 ) -> SuperpositionState:
-    """Build the two-state superposition contract from exact diagonalization.
+    """Build the two-state superposition from the HF HOMO (sigma) and LUMO (sigma*).
 
-    For each lowest eigenvector, extract the mapper-aware 1-RDM, take the
-    dominant natural orbital, and evaluate it on a grid shared by phi0 and phi1.
-    LiH falls back to HF HOMO/LUMO when natural orbitals fail quality checks.
+    The moving state is ``Psi(r,t) = c0 phi0 e^{-iE0 t} + c1 phi1 e^{-iE1 t}`` with
+    ``phi0``/``phi1`` the canonical HF HOMO/LUMO molecular orbitals and ``E0``/``E1``
+    their orbital energies.  The two orbitals are distinct and non-degenerate by
+    construction (the HOMO-LUMO gap is positive), so the oscillation period is always
+    defined.  This is deliberately *not* built from the two lowest many-body
+    eigenstates of the qubit Hamiltonian: that spectrum spans every particle-number
+    and spin sector, so its two lowest states can fall in the wrong sector or be
+    spin-degenerate (e.g. HeH+ gives ``E0 == E1``).  HOMO/LUMO is identical code for
+    H2, HeH+, and LiH (clean sigma -> sigma* charge oscillation; HeH+'s polarity
+    shows up as asymmetric amplitude toward He).
+
+    Equivariance caveat: the HF MOs are eigenfunctions of the *non-local* Fock
+    operator, so the kinematic current ``j = Im(Psi* grad Psi)`` is not continuity-
+    consistent.  The trajectory cloud has the correct phase, direction, and period
+    but under-transports the density's amplitude.  This is modeling physics, not a
+    bug (a local-Hamiltonian harmonic-oscillator control is equivariant to the grid
+    floor); the motion is a qualitative visualization.
+
+    ``mapping``/``two_qubit_reduction``/``qubit_hamiltonian`` are kept for signature
+    compatibility but unused: HOMO/LUMO orbitals are mapper-free.
     """
-    from qorbital.bohmian.projection import project_hf_mo, project_natural_orbital
+    from qorbital.bohmian.projection import project_hf_mo
+    from qorbital.chemistry.hartree_fock import compute_hf_density
+
+    del mapping, two_qubit_reduction, qubit_hamiltonian  # mapper-free; kept for compat
 
     params = get_molecule_params(atom_string)
-    resolved_mapping = mapping if mapping is not None else params.mapping
-    resolved_2qr = (
-        two_qubit_reduction
-        if two_qubit_reduction is not None
-        else params.two_qubit_reduction
-    )
-
     if integrals is None:
         integrals = compute_integrals(
             atom_string,
@@ -219,84 +235,37 @@ def build_superposition_state(
             charge=params.charge,
             spin=params.spin,
         )
-    if qubit_hamiltonian is None:
-        qubit_hamiltonian = build_hamiltonian(
-            atom_string,
-            bond_length=bond_length,
-            basis=basis,
-            charge=params.charge,
-            spin=params.spin,
-            mapping=resolved_mapping,
-            two_qubit_reduction=resolved_2qr,
-        )
 
-    (sv0, e0), (sv1, e1) = lowest_eigenstates(qubit_hamiltonian, k=2)
-
-    density0 = compute_density(
-        sv0,
-        integrals,
+    # The HF density only fixes the common grid; phi0/phi1 are the canonical MOs.
+    grid = compute_hf_density(
+        atom_string,
+        bond_length=bond_length,
+        basis=basis,
         grid_points=grid_points,
         padding=padding,
-        atom_string=atom_string,
-        basis=basis,
-        mapping=resolved_mapping,
-        two_qubit_reduction=resolved_2qr,
-    )
-    density1 = compute_density(
-        sv1,
-        integrals,
-        grid_points=grid_points,
-        padding=padding,
-        atom_string=atom_string,
-        basis=basis,
-        mapping=resolved_mapping,
-        two_qubit_reduction=resolved_2qr,
     )
 
-    wf0 = project_natural_orbital(density0, integrals, atom_string, basis=basis)
-    origin_bohr, spacing_bohr = _wavefunction_to_bohr(wf0)
-    phi0_norm = _normalize_on_grid(wf0.psi, spacing_bohr)
-
-    n_orbitals = len(density1.natural_occupations)
-    best_wf1: WavefunctionGrid | None = None
-    best_overlap = float("inf")
-    for orbital_index in range(n_orbitals):
-        candidate = project_natural_orbital(
-            density1,
-            integrals,
-            atom_string,
-            basis=basis,
-            orbital_index=orbital_index,
+    n_occ = integrals.num_particles[0]
+    homo_index = n_occ - 1
+    lumo_index = n_occ
+    n_mo = integrals.mo_coefficients.shape[1]
+    if homo_index < 0 or lumo_index >= n_mo:
+        msg = (
+            f"{atom_string} has no HOMO/LUMO pair (n_mo={n_mo}, n_occ={n_occ}); "
+            "cannot build a HOMO/LUMO superposition"
         )
-        phi_candidate = _normalize_on_grid(candidate.psi, spacing_bohr)
-        overlap = abs(grid_overlap(phi0_norm, phi_candidate, spacing_bohr))
-        if overlap < best_overlap:
-            best_overlap = overlap
-            best_wf1 = candidate
-
-    if best_wf1 is None:
-        msg = "no natural orbital available for excited-state projection"
         raise ValueError(msg)
-    wf1 = best_wf1
-    assert_common_grid(wf0, wf1)
 
-    use_fallback = atom_string == "LiH" and (
-        not natural_orbital_is_usable(density0, wf0)
-        or not natural_orbital_is_usable(density1, wf1)
-    )
-    if use_fallback:
-        n_occ = integrals.num_particles[0]
-        wf0 = project_hf_mo(
-            density0, integrals, atom_string, mo_index=n_occ - 1, basis=basis
-        )
-        wf1 = project_hf_mo(
-            density1, integrals, atom_string, mo_index=n_occ, basis=basis
-        )
-        assert_common_grid(wf0, wf1)
+    wf0 = project_hf_mo(grid, integrals, atom_string, mo_index=homo_index, basis=basis)
+    wf1 = project_hf_mo(grid, integrals, atom_string, mo_index=lumo_index, basis=basis)
+    assert_common_grid(wf0, wf1)
 
     origin_bohr, spacing_bohr = _wavefunction_to_bohr(wf0)
     phi0 = _normalize_on_grid(wf0.psi, spacing_bohr)
     phi1 = _normalize_on_grid(wf1.psi, spacing_bohr)
+
+    e0 = float(integrals.mo_energies[homo_index])
+    e1 = float(integrals.mo_energies[lumo_index])
 
     coeff0 = _DEFAULT_C if c0 is None else c0
     coeff1 = _DEFAULT_C if c1 is None else c1
@@ -307,7 +276,7 @@ def build_superposition_state(
         grid_shape=wf0.grid_shape,
         phi0=phi0,
         phi1=phi1,
-        state_indices=(0, 1),
+        state_indices=(homo_index, lumo_index),
         E0=e0,
         E1=e1,
         c0=coeff0,
@@ -332,12 +301,18 @@ def build_superposition_from_ground_state(
     c0: float | None = None,
     c1: float | None = None,
 ) -> SuperpositionState:
-    """Build a two-state superposition from a VQE/hardware ground + exact excited.
+    """Build a two-state superposition from a VQE/hardware ground state + HF LUMO.
 
-    phi0 is projected from ``ground_statevector``; phi1 from the first excited
-    eigenvector of exact diagonalization on the same grid.
+    phi0 is the dominant natural orbital of ``ground_statevector`` (so per-run
+    hardware noise reshapes it -> the uncertainty cloud); phi1 is the HF LUMO
+    (sigma*) on the same grid.  Energies are the HF orbital energies (E0=eps_HOMO,
+    E1=eps_LUMO), giving a positive, always-defined HOMO-LUMO gap -- consistent with
+    :func:`build_superposition_state` and free of the wrong-sector degeneracy that
+    the two-lowest-eigenstate construction hits for HeH+.  ``ground_energy`` is kept
+    for provenance but does not drive the motion (mixing a total electronic energy
+    with an orbital energy would be an inconsistent gap).
     """
-    from qorbital.bohmian.projection import project_hf_mo, project_natural_orbital
+    del ground_energy  # provenance only; motion uses the HF orbital-energy gap
 
     params = get_molecule_params(atom_string)
     resolved_mapping = mapping if mapping is not None else params.mapping
@@ -346,18 +321,6 @@ def build_superposition_from_ground_state(
         if two_qubit_reduction is not None
         else params.two_qubit_reduction
     )
-
-    qubit_hamiltonian = build_hamiltonian(
-        atom_string,
-        bond_length=bond_length,
-        basis=basis,
-        charge=params.charge,
-        spin=params.spin,
-        mapping=resolved_mapping,
-        two_qubit_reduction=resolved_2qr,
-    )
-    (_, e0_exact), (sv1, e1) = lowest_eigenstates(qubit_hamiltonian, k=2)
-    e0 = ground_energy if ground_energy is not None else e0_exact
 
     density0 = compute_density(
         ground_statevector,
@@ -369,61 +332,52 @@ def build_superposition_from_ground_state(
         mapping=resolved_mapping,
         two_qubit_reduction=resolved_2qr,
     )
-    density1 = compute_density(
-        sv1,
-        integrals,
-        grid_points=grid_points,
-        padding=padding,
-        atom_string=atom_string,
-        basis=basis,
-        mapping=resolved_mapping,
-        two_qubit_reduction=resolved_2qr,
+    return build_superposition_from_density(
+        density0, integrals, atom_string, basis=basis, c0=c0, c1=c1
     )
 
-    wf0 = project_natural_orbital(density0, integrals, atom_string, basis=basis)
-    origin_bohr, spacing_bohr = _wavefunction_to_bohr(wf0)
-    phi0_norm = _normalize_on_grid(wf0.psi, spacing_bohr)
 
-    n_orbitals = len(density1.natural_occupations)
-    best_wf1: WavefunctionGrid | None = None
-    best_overlap = float("inf")
-    for orbital_index in range(n_orbitals):
-        candidate = project_natural_orbital(
-            density1,
-            integrals,
-            atom_string,
-            basis=basis,
-            orbital_index=orbital_index,
+def build_superposition_from_density(
+    density: ElectronDensityGrid,
+    integrals: MolecularIntegrals,
+    atom_string: str,
+    *,
+    basis: str = "sto-3g",
+    c0: float | None = None,
+    c1: float | None = None,
+) -> SuperpositionState:
+    """HOMO/LUMO superposition from a (possibly noisy) density grid.
+
+    phi0 is the dominant natural orbital of ``density`` (so a per-run hardware-noisy
+    1-RDM reshapes it -> the uncertainty cloud); phi1 is the HF LUMO on the same
+    grid; energies are the HF orbital energies (always-defined HOMO-LUMO gap).
+    Shared by :func:`build_superposition_from_ground_state` and the hardware
+    noise ensemble.
+    """
+    from qorbital.bohmian.projection import project_hf_mo, project_natural_orbital
+
+    n_occ = integrals.num_particles[0]
+    lumo_index = n_occ
+    n_mo = integrals.mo_coefficients.shape[1]
+    if lumo_index >= n_mo:
+        msg = (
+            f"{atom_string} has no LUMO (n_mo={n_mo}, n_occ={n_occ}); "
+            "cannot build a HOMO/LUMO superposition"
         )
-        phi_candidate = _normalize_on_grid(candidate.psi, spacing_bohr)
-        overlap = abs(grid_overlap(phi0_norm, phi_candidate, spacing_bohr))
-        if overlap < best_overlap:
-            best_overlap = overlap
-            best_wf1 = candidate
-
-    if best_wf1 is None:
-        msg = "no natural orbital available for excited-state projection"
         raise ValueError(msg)
-    wf1 = best_wf1
-    assert_common_grid(wf0, wf1)
 
-    use_fallback = atom_string == "LiH" and (
-        not natural_orbital_is_usable(density0, wf0)
-        or not natural_orbital_is_usable(density1, wf1)
+    wf0 = project_natural_orbital(density, integrals, atom_string, basis=basis)
+    wf1 = project_hf_mo(
+        density, integrals, atom_string, mo_index=lumo_index, basis=basis
     )
-    if use_fallback:
-        n_occ = integrals.num_particles[0]
-        wf0 = project_hf_mo(
-            density0, integrals, atom_string, mo_index=n_occ - 1, basis=basis
-        )
-        wf1 = project_hf_mo(
-            density1, integrals, atom_string, mo_index=n_occ, basis=basis
-        )
-        assert_common_grid(wf0, wf1)
+    assert_common_grid(wf0, wf1)
 
     origin_bohr, spacing_bohr = _wavefunction_to_bohr(wf0)
     phi0 = _normalize_on_grid(wf0.psi, spacing_bohr)
     phi1 = _normalize_on_grid(wf1.psi, spacing_bohr)
+
+    e0 = float(integrals.mo_energies[n_occ - 1])
+    e1 = float(integrals.mo_energies[lumo_index])
 
     coeff0 = _DEFAULT_C if c0 is None else c0
     coeff1 = _DEFAULT_C if c1 is None else c1
@@ -434,11 +388,11 @@ def build_superposition_from_ground_state(
         grid_shape=wf0.grid_shape,
         phi0=phi0,
         phi1=phi1,
-        state_indices=(0, 1),
+        state_indices=(n_occ - 1, lumo_index),
         E0=e0,
         E1=e1,
         c0=coeff0,
         c1=coeff1,
         omega=(e1 - e0) / _HBAR,
-        source="hardware_ground+exact_excited",
+        source="hardware_ground+hf_lumo",
     )

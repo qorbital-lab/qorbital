@@ -214,10 +214,12 @@ def build_molecule_bundle(
 
     offsets = _NUCLEUS_OFFSETS.get(molecule_id, [])
     if offsets and molecule_id == "H2":
-        half = bond_length / 2.0
+        # Use the same [0, bond] data-frame convention as HeH+/LiH so the drawn
+        # atoms share one frame with the PySCF density grid and the |psi|^2 seeds
+        # (which live in the geometry frame centered on the bond midpoint).
         atoms = [
-            AtomSpec(symbol="H", position=[0.0, 0.0, -half]),
-            AtomSpec(symbol="H", position=[0.0, 0.0, half]),
+            AtomSpec(symbol="H", position=[0.0, 0.0, 0.0]),
+            AtomSpec(symbol="H", position=[0.0, 0.0, bond_length]),
         ]
     elif offsets and molecule_id == "HeH+":
         atoms = [

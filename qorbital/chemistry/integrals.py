@@ -46,6 +46,7 @@ class MolecularIntegrals:
     hf_energy: float
     overlap_integrals: NDArray[np.float64]
     mo_coefficients: NDArray[np.float64]
+    mo_energies: NDArray[np.float64]
     problem: ElectronicStructureProblem
 
 
@@ -91,6 +92,7 @@ def compute_integrals(
     mean_field = driver._calc
     hf_energy = float(mean_field.e_tot)
     mo_coefficients = np.asarray(mean_field.mo_coeff)
+    mo_energies = np.asarray(mean_field.mo_energy)
     overlap_integrals = np.asarray(mean_field.get_ovlp())
 
     return MolecularIntegrals(
@@ -102,5 +104,6 @@ def compute_integrals(
         hf_energy=hf_energy,
         overlap_integrals=overlap_integrals,
         mo_coefficients=mo_coefficients,
+        mo_energies=mo_energies,
         problem=problem,
     )

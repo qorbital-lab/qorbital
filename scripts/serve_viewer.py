@@ -35,6 +35,14 @@ class ViewerRequestHandler(http.server.SimpleHTTPRequestHandler):
         self._runs_root = runs_root
         super().__init__(*args, directory=str(web_root), **kwargs)
 
+    def end_headers(self) -> None:
+        # Dev server: never cache, so edits to JS modules/bundles show up on a
+        # normal reload (no stale-module "didn't work" surprises).
+        self.send_header("Cache-Control", "no-store, must-revalidate")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
+        super().end_headers()
+
     def translate_path(self, path: str) -> str:
         clean = path.split("?", 1)[0].split("#", 1)[0]
         if clean.startswith("/bundles/"):

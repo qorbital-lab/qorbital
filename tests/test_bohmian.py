@@ -208,7 +208,9 @@ def h2_superposition_integrator():
 
 @pytest.fixture(scope="module")
 def heh_superposition_integrator():
-    return _build_heh_superposition_state(grid_points=20)
+    # HOMO/LUMO is non-degenerate by construction, so HeH+ no longer needs the
+    # eigenstate band-aid that skipped a near-degenerate pair.
+    return build_superposition_state("HeH+", bond_length=0.772, grid_points=20)
 
 
 class TestSuperpositionVelocity:
@@ -262,75 +264,6 @@ class TestSuperpositionVelocity:
 
 def _h2_superposition_seeds(n_particles: int = 20) -> np.ndarray:
     return np.array([[0.0, 0.0, z] for z in np.linspace(-0.15, 0.15, n_particles)])
-
-
-def _build_heh_superposition_state(grid_points: int = 20) -> SuperpositionState:
-    """HeH+ ground + first non-degenerate excited (skip near-degenerate pair)."""
-    import math
-
-    from qorbital.chemistry.eigenstates import lowest_eigenstates
-    from qorbital.chemistry.hamiltonian import build_hamiltonian
-    from qorbital.chemistry.superposition import (
-        _normalize_on_grid,
-        _wavefunction_to_bohr,
-        grid_overlap,
-        project_eigenpair_to_grid,
-    )
-
-    params = get_molecule_params("HeH+")
-    bond = 0.772
-    integrals = compute_integrals(
-        "HeH+", bond_length=bond, charge=params.charge, spin=params.spin
-    )
-    qh = build_hamiltonian(
-        "HeH+", bond_length=bond, charge=params.charge, spin=params.spin
-    )
-    (sv0, e0), _, (sv2, e2) = lowest_eigenstates(qh, k=3)
-
-    density0 = compute_density(
-        sv0, integrals, grid_points=grid_points, atom_string="HeH+"
-    )
-    wf0 = project_eigenpair_to_grid(sv0, integrals, "HeH+", reference_grid=density0)
-    origin_bohr, spacing_bohr = _wavefunction_to_bohr(wf0)
-    phi0 = _normalize_on_grid(wf0.psi, spacing_bohr)
-
-    density2 = compute_density(
-        sv2, integrals, grid_points=grid_points, atom_string="HeH+"
-    )
-    best_wf2 = None
-    best_overlap = float("inf")
-    for orbital_index in range(len(density2.natural_occupations)):
-        candidate = project_eigenpair_to_grid(
-            sv2,
-            integrals,
-            "HeH+",
-            reference_grid=density0,
-            orbital_index=orbital_index,
-        )
-        phi_candidate = _normalize_on_grid(candidate.psi, spacing_bohr)
-        overlap = abs(grid_overlap(phi0, phi_candidate, spacing_bohr))
-        if overlap < best_overlap:
-            best_overlap = overlap
-            best_wf2 = candidate
-    if best_wf2 is None:
-        msg = "no excited orbital available for HeH+ superposition"
-        raise ValueError(msg)
-    phi1 = _normalize_on_grid(best_wf2.psi, spacing_bohr)
-    coeff = 1.0 / math.sqrt(2.0)
-    return SuperpositionState(
-        origin=origin_bohr,
-        spacing=spacing_bohr,
-        grid_shape=wf0.grid_shape,
-        phi0=phi0,
-        phi1=phi1,
-        state_indices=(0, 2),
-        E0=e0,
-        E1=e2,
-        c0=coeff,
-        c1=coeff,
-        omega=(e2 - e0),
-        source="exact_diag",
-    )
 
 
 class TestSuperpositionIntegrator:

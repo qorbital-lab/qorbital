@@ -2,9 +2,9 @@
 
 This is the orchestrator for the sprint's *noise* density path.  The measurement
 primitive (:func:`qorbital.vqe.hardware_rdm.measure_rdm1`) lives in ``vqe``; this
-module lives in ``bohmian`` because it also needs trajectory generation
-(:func:`qorbital.bohmian.trajectories.generate_trajectories`), keeping imports
-flowing one direction (chemistry -> vqe -> bohmian -> viz).
+module lives in ``bohmian`` because it also integrates superposition trajectories
+(:func:`qorbital.bohmian.integrator.integrate_superposition_trajectories_from_state`),
+keeping imports flowing one direction (chemistry -> vqe -> bohmian -> viz).
 
 For a converged circuit we measure the 1-RDM ``M`` times on a backend with shots.
 On real hardware each run differs (genuine device noise); each noisy 1-RDM ->
@@ -31,15 +31,23 @@ from pathlib import Path
 import numpy as np
 from numpy.typing import NDArray
 
-from qorbital.bohmian.trajectories import generate_trajectories
+from qorbital.bohmian.integrator import integrate_superposition_trajectories_from_state
+from qorbital.bohmian.seeds import sample_superposition_seeds
 from qorbital.bohmian.uncertainty import UncertaintyCloud, compute_uncertainty_cloud
+from qorbital.bohmian.velocity import superposition_period
 from qorbital.chemistry.density import ElectronDensityGrid, density_from_rdm1
 from qorbital.chemistry.hamiltonian import build_hamiltonian
 from qorbital.chemistry.integrals import compute_integrals
 from qorbital.chemistry.molecules import DEFAULT_BOND_LENGTHS
+from qorbital.chemistry.superposition import build_superposition_from_density
 from qorbital.vqe.backends import Backend, make_estimator
 from qorbital.vqe.hardware_rdm import MeasuredRDM, measure_rdm1
 from qorbital.vqe.solver import run_vqe_from_hamiltonian
+
+# Trajectory integration controls for the noise-ensemble members.
+_N_PARTICLES = 50
+_N_STEPS = 100
+_N_PERIODS = 2.0
 
 
 @dataclass(frozen=True)
@@ -69,11 +77,26 @@ def _build_member(
     bond: float,
     grid_points: int,
 ) -> tuple[ElectronDensityGrid, NDArray[np.float64]]:
-    """Noisy RDM -> density grid -> Bohmian trajectories (deterministic, no device)."""
+    """Noisy RDM -> HOMO/LUMO superposition -> Bohmian trajectories (no device).
+
+    The noisy 1-RDM reshapes phi0 (its dominant natural orbital); phi1 is the HF
+    LUMO.  Seeds are drawn from |Psi(t0)|^2 and integrated through the time-
+    dependent superposition, so per-run device noise spreads the trajectory cloud.
+    ``bond`` is retained for signature compatibility (the grid follows the density).
+    """
+    del bond
     density = density_from_rdm1(
         measured.rdm1_mo, integrals, molecule, grid_points=grid_points
     )
-    trajectories = generate_trajectories(density, integrals, molecule, bond=bond)
+    state = build_superposition_from_density(density, integrals, molecule)
+    # Seed/integrate from the symmetric phase t0 = T/4 (matches generate_bundles
+    # so single-run and ensemble trajectories align).
+    period = superposition_period(state.E0, state.E1)
+    t0 = period / 4.0
+    seeds = sample_superposition_seeds(state, _N_PARTICLES, t=t0)
+    trajectories = integrate_superposition_trajectories_from_state(
+        state, seeds, n_periods=_N_PERIODS, n_steps=_N_STEPS, t0=t0
+    )
     return density, trajectories
 
 

@@ -16,11 +16,9 @@ export function scaleMoleculeBond(molecule, bondLength) {
     position: [...atom.position],
   }));
 
-  if (id === "H2" && atoms.length === 2) {
-    const half = bondLength / 2;
-    atoms[0].position = [0, 0, -half];
-    atoms[1].position = [0, 0, half];
-  } else if ((id === "HeH+" || id === "LiH") && atoms.length === 2) {
+  if ((id === "H2" || id === "HeH+" || id === "LiH") && atoms.length === 2) {
+    // All three use the PySCF geometry frame (atoms at z=0 and z=bond, centered
+    // on the bond midpoint) so the nuclei straddle the density/trajectory cloud.
     atoms[0].position = [0, 0, 0];
     atoms[1].position = [0, 0, bondLength];
   } else if (atoms.length >= 2) {

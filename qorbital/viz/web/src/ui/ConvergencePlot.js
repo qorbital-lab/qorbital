@@ -5,10 +5,16 @@
 /**
  * @param {HTMLCanvasElement} canvas
  * @param {Array<{ iteration: number, energy: number }>} history
+ * @param {{ measuredEnergy?: number | null }} [options] hardware-measured
+ *   electronic energy of the converged circuit (varies per run with shot noise)
  */
-export function drawConvergencePlot(canvas, history) {
+export function drawConvergencePlot(canvas, history, options = {}) {
   const ctx = canvas.getContext("2d");
   if (!ctx || history.length === 0) return;
+
+  const measuredEnergy = Number.isFinite(Number(options.measuredEnergy))
+    ? Number(options.measuredEnergy)
+    : null;
 
   const cssW = 220;
   const cssH = 88;
@@ -34,6 +40,10 @@ export function drawConvergencePlot(canvas, history) {
     eMin = Math.min(eMin, point.energy);
     eMax = Math.max(eMax, point.energy);
   }
+  if (measuredEnergy != null) {
+    eMin = Math.min(eMin, measuredEnergy);
+    eMax = Math.max(eMax, measuredEnergy);
+  }
   const ePad = Math.max((eMax - eMin) * 0.08, 0.01);
   eMin -= ePad;
   eMax += ePad;
@@ -48,9 +58,12 @@ export function drawConvergencePlot(canvas, history) {
   const iterToX = (iteration) =>
     plot.left + ((iteration - iterMin) / iterSpan) * plotW;
 
+  // Energy axis increases upward (standard convention): the most negative
+  // (best) energy sits at the BOTTOM, so the optimizer curve descends to the
+  // ground-state minimum and the noisier hardware value sits above it.
   /** @param {number} energy */
   const energyToY = (energy) =>
-    plot.top + ((energy - eMin) / (eMax - eMin)) * plotH;
+    plot.top + ((eMax - energy) / (eMax - eMin)) * plotH;
 
   ctx.strokeStyle = "rgba(70, 70, 70, 0.45)";
   ctx.lineWidth = 1;
@@ -89,6 +102,25 @@ export function drawConvergencePlot(canvas, history) {
   ctx.strokeStyle = "rgba(120, 200, 220, 0.85)";
   ctx.lineWidth = 1.25;
   ctx.stroke();
+
+  // Hardware-measured energy of the converged circuit: amber line that moves
+  // per run with shot noise (the optimizer curve above is the deterministic sim).
+  if (measuredEnergy != null) {
+    const my = energyToY(measuredEnergy);
+    ctx.strokeStyle = "rgba(240, 170, 90, 0.9)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(plot.left, my);
+    ctx.lineTo(cssW - plot.right, my);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font = '600 8px ui-monospace, "SF Mono", Menlo, monospace';
+    ctx.fillStyle = "rgba(245, 185, 110, 0.95)";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "bottom";
+    ctx.fillText(`HW ${measuredEnergy.toFixed(3)}`, cssW - plot.right, my - 2);
+  }
 
   ctx.font = 'italic 500 9px ui-monospace, "SF Mono", Menlo, monospace';
   ctx.fillStyle = "#666";

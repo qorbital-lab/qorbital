@@ -509,6 +509,22 @@ export class QorbitalApp {
   }
 
   /**
+   * Toggle an ensemble overlay mode. `hardwareOnly=false` overlays all recorded
+   * runs; `hardwareOnly=true` overlays only real-QPU runs. Clicking the button
+   * for the currently-active mode turns the ensemble off.
+   *
+   * @param {boolean} hardwareOnly
+   */
+  _setEnsembleMode(hardwareOnly) {
+    if (!this._ensemble) return;
+    const active =
+      this.state.showEnsemble && this.state.ensembleHardwareOnly === hardwareOnly;
+    this.state.ensembleHardwareOnly = hardwareOnly;
+    this._rebuildEnsembleUncertainty();
+    this._setLayerState("showEnsemble", !active);
+  }
+
+  /**
    * @param {boolean} value
    */
   _setPlaying(value) {
@@ -539,7 +555,14 @@ export class QorbitalApp {
     active(this._toolbar.cloud, this.state.showCloud);
     active(this._toolbar.surface, this.state.showSurface);
     active(this._toolbar.traj, this.state.showTrajectories);
-    active(this._toolbar.ensemble, this.state.showEnsemble);
+    active(
+      this._toolbar.ensemble,
+      this.state.showEnsemble && !this.state.ensembleHardwareOnly,
+    );
+    active(
+      this._toolbar.ensembleHw,
+      this.state.showEnsemble && this.state.ensembleHardwareOnly,
+    );
     active(this._toolbar.comparison, this.state.showComparison);
     active(this._toolbar.tour, this._tourActive);
     if (this._toolbar.play) {
@@ -564,8 +587,18 @@ export class QorbitalApp {
       /** @type {HTMLButtonElement} */ (this._toolbar.ensemble).disabled =
         !available;
     }
+    if (this._toolbar.ensembleHw) {
+      const hwCount = available
+        ? this._ensemble.members.filter((m) =>
+            QorbitalApp.isHardwareBackend(m.backend),
+          ).length
+        : 0;
+      /** @type {HTMLButtonElement} */ (this._toolbar.ensembleHw).disabled =
+        hwCount === 0;
+    }
     if (!available) {
       this.state.showEnsemble = false;
+      this.state.ensembleHardwareOnly = false;
       this.elements.ensembleHint.textContent = "No ensemble for this molecule";
     } else {
       const count = this._ensemble.members.length;
@@ -608,6 +641,7 @@ export class QorbitalApp {
       surface: byId("btn-surface"),
       traj: byId("btn-traj"),
       ensemble: byId("btn-ensemble"),
+      ensembleHw: byId("btn-ensemble-hw"),
       comparison: byId("btn-comparison"),
       play: byId("btn-play"),
       tour: byId("btn-tour"),
@@ -631,9 +665,8 @@ export class QorbitalApp {
     onClick("btn-traj", () =>
       this._setLayerState("showTrajectories", !this.state.showTrajectories),
     );
-    onClick("btn-ensemble", () =>
-      this._setLayerState("showEnsemble", !this.state.showEnsemble),
-    );
+    onClick("btn-ensemble", () => this._setEnsembleMode(false));
+    onClick("btn-ensemble-hw", () => this._setEnsembleMode(true));
     onClick("btn-comparison", () =>
       this._setLayerState("showComparison", !this.state.showComparison),
     );
@@ -644,7 +677,7 @@ export class QorbitalApp {
     onClick("btn-tour", () => this._setTour(!this._tourActive));
     onClick("btn-reset", () => {
       this._setTour(false);
-      this.sceneManager.resetView();
+      this.frameToMolecule();
     });
     onClick("btn-save", () => this._saveFrame());
     this._syncLayerUi();
@@ -683,8 +716,10 @@ export class QorbitalApp {
     const preset = presets[name];
     if (!preset) return;
     Object.assign(this.state, preset);
+    this.state.ensembleHardwareOnly = false;
     if (!this._ensemble) this.state.showEnsemble = false;
     if (!this._surfaceAvailable) this.state.showSurface = false;
+    this._rebuildEnsembleUncertainty();
     this._syncLayerUi();
     if (this._currentBundle) {
       this.renderBundle(this._currentBundle);
@@ -766,6 +801,10 @@ export class QorbitalApp {
       if (runId && this._currentMolecule) {
         this._selectedRunId = runId;
         this._loadAndDrawConvergence(this._currentMolecule, runId);
+        // Switch the displayed trajectory + HUD metadata to the selected run.
+        if (this._currentBundle) {
+          this.renderBundle(this._currentBundle);
+        }
       }
     });
   }
@@ -907,7 +946,8 @@ export class QorbitalApp {
   }
 
   _rebuildEnsembleUncertainty() {
-    if (!this._ensemble?.members?.length || !this._currentBundle?.density) {
+    const members = this._ensembleMembers();
+    if (!members.length || !this._currentBundle?.density) {
       this._ensembleUncertaintyCloud = null;
       return;
     }
@@ -924,7 +964,7 @@ export class QorbitalApp {
     const spacing = /** @type {number[]} */ (density.spacing);
     const shape = /** @type {number[]} */ (density.shape);
     this._ensembleUncertaintyCloud = computeUncertaintyCloud(
-      this._ensemble.members,
+      members,
       origin,
       spacing,
       shape,
@@ -948,19 +988,39 @@ export class QorbitalApp {
       return;
     }
 
-    for (const member of members) {
-      const option = document.createElement("option");
-      option.value = member.runId;
-      const shots =
-        member.shots != null ? `${member.shots.toLocaleString()} shots` : "—";
-      const shortId = member.runId.replace(/^h2_ensemble_|^lih_r/, "");
-      option.textContent = `${shortId} · ${shots}`;
-      select.appendChild(option);
-    }
+    const hardware = members.filter((m) =>
+      QorbitalApp.isHardwareBackend(m.backend),
+    );
+    const sim = members.filter((m) => !QorbitalApp.isHardwareBackend(m.backend));
 
+    /** @param {string} label @param {typeof members} group */
+    const addGroup = (label, group) => {
+      if (group.length === 0) return;
+      const optgroup = document.createElement("optgroup");
+      optgroup.label = label;
+      for (const member of group) {
+        const option = document.createElement("option");
+        option.value = member.runId;
+        const shots =
+          member.shots != null ? `${member.shots.toLocaleString()} shots` : "—";
+        const shortId = member.runId.replace(
+          /^h2_ensemble_|^h2_ladder_|^lih_r/,
+          "",
+        );
+        option.textContent = `${shortId} · ${shots}`;
+        optgroup.appendChild(option);
+      }
+      select.appendChild(optgroup);
+    };
+    addGroup(`Hardware · IonQ Forte (${hardware.length})`, hardware);
+    addGroup(`Simulator (${sim.length})`, sim);
+
+    // Default to a real hardware run when available (the headline of the demo),
+    // otherwise the first run; keep the current selection if still present.
+    const ordered = [...hardware, ...sim];
     const preferred =
-      members.find((m) => m.runId === this._selectedRunId)?.runId ??
-      members[0].runId;
+      ordered.find((m) => m.runId === this._selectedRunId)?.runId ??
+      ordered[0].runId;
     select.value = preferred;
     this._selectedRunId = preferred;
     this._loadAndDrawConvergence(entry, preferred);
@@ -981,7 +1041,9 @@ export class QorbitalApp {
 
     try {
       const summary = await loadRunLog(moleculeDir, runId);
-      drawConvergencePlot(canvas, summary.history);
+      drawConvergencePlot(canvas, summary.history, {
+        measuredEnergy: summary.electronicEnergy,
+      });
       inset.hidden = false;
     } catch (err) {
       console.warn("Run log load failed:", err);
@@ -1036,7 +1098,9 @@ export class QorbitalApp {
       modeParts.push("trajectories");
     }
     if (this.state.showEnsemble && this._ensembleCount > 0) {
-      modeParts.push(`ensemble ×${this._ensembleCount}`);
+      modeParts.push(
+        `ensemble ×${this._ensembleCount}${this.state.ensembleHardwareOnly ? " (hardware)" : ""}`,
+      );
     }
     if (this.state.showEnsemble && this._ensembleUncertaintyCloud) {
       modeParts.push("uncertainty cloud");
@@ -1054,9 +1118,17 @@ export class QorbitalApp {
     this.elements.metaBond.textContent = `${previewBond.toFixed(2)} Å`;
     this.elements.metaBasis.textContent = basis;
     this.elements.metaMethod.textContent = method;
-    this.elements.metaBackend.textContent = backendLabel;
 
-    if (!this._pesPoints) {
+    // When a specific run is picked in the dropdown, the HUD reflects that run's
+    // measured energy/backend (the "run we're looking at"); otherwise the bundle.
+    const runMember = this._selectedRunMember();
+    this.elements.metaBackend.textContent = runMember?.backend
+      ? `ionq / ${runMember.backend}`
+      : backendLabel;
+
+    if (runMember && Number.isFinite(Number(runMember.energy))) {
+      this.elements.metaEnergy.textContent = this._fmtEnergy(runMember.energy);
+    } else if (!this._pesPoints) {
       this.elements.metaEnergy.textContent = this._fmtEnergy(bundle.energy_hartree);
     }
 
@@ -1079,7 +1151,7 @@ export class QorbitalApp {
     const provenance = bundle.provenance
       ? /** @type {Record<string, string>} */ (bundle.provenance)
       : null;
-    const runId = provenance?.run_id ?? "—";
+    const runId = runMember?.runId ?? provenance?.run_id ?? "—";
 
     const bondDrift = Math.abs(previewBond - equilibriumBond) > 0.01;
     const pesNote = bondDrift
@@ -1106,11 +1178,14 @@ export class QorbitalApp {
    */
   _updateBackendBadge(backend) {
     const badge = this.elements.backendBadge;
-    if (this.state.showEnsemble && this._ensemble?.members?.length) {
-      const member = this._ensemble.members[0];
-      const name = String(member.backend ?? "ionq").replace(/_/g, " ");
-      const shots = member.shots != null ? ` · ${member.shots} shots` : "";
-      badge.textContent = `IonQ · ${name}${shots} · ×${this._ensemble.members.length} runs`;
+    const members = this._ensembleMembers();
+    if (this.state.showEnsemble && members.length) {
+      const tag = this.state.ensembleHardwareOnly
+        ? "forte · HW only"
+        : String(members[0].backend ?? "ionq").replace(/_/g, " ");
+      const shots =
+        members[0].shots != null ? ` · ${members[0].shots} shots` : "";
+      badge.textContent = `IonQ · ${tag}${shots} · ×${members.length} runs`;
     } else if (backend) {
       badge.textContent = `${backend.provider} / ${backend.name}`;
     } else {
@@ -1156,6 +1231,98 @@ export class QorbitalApp {
       toggle.checked = false;
     }
     this._syncLayerUi();
+  }
+
+  /**
+   * Stable per-molecule framing bound: nuclei + trajectory extent, independent
+   * of which layers (surface/cloud) are toggled, so toggling never rescales the
+   * view and the isosurface can't blow up the framing.
+   *
+   * @returns {THREE.Box3 | null}
+   */
+  _computeFramingBox() {
+    const box = new THREE.Box3();
+    let has = false;
+    if (this._currentBundle) {
+      const mol = scaleMoleculeBond(
+        /** @type {Record<string, unknown>} */ (this._currentBundle.molecule),
+        this.state.previewBond ?? 0,
+      );
+      const atoms = /** @type {Array<{ position: number[] }>} */ (mol.atoms);
+      for (const atom of atoms) {
+        box.expandByPoint(
+          new THREE.Vector3(
+            atom.position[0],
+            atom.position[1],
+            atom.position[2],
+          ),
+        );
+        has = true;
+      }
+    }
+    const v = this._trajectoryValues;
+    if (v && v.length >= 3) {
+      for (let i = 0; i < v.length; i += 3) {
+        box.expandByPoint(new THREE.Vector3(v[i], v[i + 1], v[i + 2]));
+      }
+      has = true;
+    }
+    if (!has) return null;
+    box.expandByScalar(0.4);
+    return box;
+  }
+
+  /** Frame the camera to the stable per-molecule bound (molecule load + reset). */
+  frameToMolecule() {
+    this.sceneManager.frameContent(this._computeFramingBox() ?? undefined);
+  }
+
+  /**
+   * The ensemble member matching the run picked in the dropdown, or null when
+   * no ensemble / run is selected (then the bundle's own trajectory is shown).
+   *
+   * @returns {{ values: Float32Array, particles: number, steps: number,
+   *   dt: number, runId: string, shots: number | null, backend: string | null,
+   *   energy: number | null } | null}
+   */
+  _selectedRunMember() {
+    if (!this._ensemble || !this._selectedRunId) return null;
+    return (
+      this._ensemble.members.find((m) => m.runId === this._selectedRunId) ?? null
+    );
+  }
+
+  /**
+   * Real-QPU runs vs simulator runs. Hardware = a non-simulator backend
+   * (ionq_forte / aria / qpu), not aer/statevector/sim.
+   *
+   * @param {string | null | undefined} backend
+   * @returns {boolean}
+   */
+  static isHardwareBackend(backend) {
+    return (
+      typeof backend === "string" &&
+      backend.length > 0 &&
+      !/sim|aer|statevector/i.test(backend)
+    );
+  }
+
+  /**
+   * Ensemble members to overlay: all of them, or only hardware runs when the
+   * "HW ensemble" mode is active.
+   *
+   * @returns {Array<{ values: Float32Array, particles: number, steps: number,
+   *   dt: number, runId: string, shots: number | null, backend: string | null,
+   *   energy: number | null }>}
+   */
+  _ensembleMembers() {
+    if (!this._ensemble) return [];
+    if (this.state.ensembleHardwareOnly) {
+      return this._ensemble.members.filter((m) =>
+        QorbitalApp.isHardwareBackend(m.backend),
+      );
+    }
+    return this._ensemble.members;
   }
 
   /**
@@ -1262,25 +1429,28 @@ export class QorbitalApp {
       this._contentGroup.add(createAtomGlyphs(displayMolecule));
     }
 
-    if (this.state.showTrajectories && this._trajectoryValues && bundle.trajectories) {
+    if (this.state.showTrajectories && bundle.trajectories) {
       const trajectories = /** @type {Record<string, unknown>} */ (
         bundle.trajectories
       );
-      const particles = Number(trajectories.particles);
-      const steps = Number(trajectories.steps);
-      const dt = Number(trajectories.dt ?? 0.1);
-      const paths = createTrajectoryPaths(
-        this._trajectoryValues,
-        particles,
-        steps,
-        dt,
-      );
-      this._animatedGroups.push(paths);
-      this._speedPeak = Math.max(
-        this._speedPeak,
-        Number(paths.userData.maxSpeed ?? 0),
-      );
-      this._contentGroup.add(paths);
+      // Show the run picked in the dropdown; fall back to the bundle's own
+      // converged-run trajectory when no ensemble run is selected.
+      const member = this._selectedRunMember();
+      const values = member ? member.values : this._trajectoryValues;
+      if (values) {
+        const particles = member
+          ? member.particles
+          : Number(trajectories.particles);
+        const steps = member ? member.steps : Number(trajectories.steps);
+        const dt = member ? member.dt : Number(trajectories.dt ?? 0.1);
+        const paths = createTrajectoryPaths(values, particles, steps, dt);
+        this._animatedGroups.push(paths);
+        this._speedPeak = Math.max(
+          this._speedPeak,
+          Number(paths.userData.maxSpeed ?? 0),
+        );
+        this._contentGroup.add(paths);
+      }
     }
 
     if (this.state.showEnsemble && this._ensemble) {
@@ -1296,20 +1466,21 @@ export class QorbitalApp {
         }
       }
 
+      const members = this._ensembleMembers();
       if (this.state.showTrajectories) {
-        const ensemble = createEnsembleTrajectories(this._ensemble.members, {
+        const ensemble = createEnsembleTrajectories(members, {
           lineOpacity: 0.08,
           opacity: 0.4,
         });
         this._animatedGroups.push(ensemble);
-        this._ensembleCount = this._ensemble.members.length;
+        this._ensembleCount = members.length;
         this._speedPeak = Math.max(
           this._speedPeak,
           Number(ensemble.userData.maxSpeed ?? 0),
         );
         this._contentGroup.add(ensemble);
       } else {
-        this._ensembleCount = this._ensemble.members.length;
+        this._ensembleCount = members.length;
       }
     }
 
@@ -1345,6 +1516,9 @@ export class QorbitalApp {
       this._refreshComparisonAvailability();
       this._rebuildEnsembleUncertainty();
       this.renderBundle(bundle);
+      // Frame once per molecule load to the stable nuclei+trajectory bound;
+      // layer toggles must not re-fit.
+      this.frameToMolecule();
       this.setOverlay("");
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

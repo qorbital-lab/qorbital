@@ -9,6 +9,7 @@ export const initialState = {
   showAtoms: true,
   showTrajectories: true,
   showEnsemble: false,
+  ensembleHardwareOnly: false,
   showComparison: false,
   comparisonDiff: false,
   trajectoryPlaying: true,

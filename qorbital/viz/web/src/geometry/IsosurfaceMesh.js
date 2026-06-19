@@ -125,8 +125,11 @@ export function createGridIsosurface(values, density, isovalue) {
     roughness: 0.72,
     side: THREE.DoubleSide,
     transparent: true,
-    opacity: 0.55,
+    opacity: 0.22,
     depthWrite: false,
+    emissive: new THREE.Color(0x2a4a8a),
+    emissiveIntensity: 0.35,
+    blending: THREE.AdditiveBlending,
   });
 
   const mesh = new THREE.Mesh(geometry, material);
@@ -138,7 +141,8 @@ export function createGridIsosurface(values, density, isovalue) {
     new THREE.LineBasicMaterial({
       color: WIREFRAME_EDGE,
       transparent: true,
-      opacity: 0.22,
+      opacity: 0.12,
+      depthWrite: false,
     }),
   );
   group.add(wireframe);

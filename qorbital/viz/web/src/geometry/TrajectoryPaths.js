@@ -8,9 +8,11 @@ import { getDiscTexture } from "../util/sprites.js";
 const TRAIL_LENGTH = 16;
 
 /**
- * Build animated Bohmian trajectory paths: a faint speed-colored fat-line
- * backdrop of the full path plus a bright "comet head" with a fading trail
- * that flows along it in time.
+ * Build animated Bohmian trajectory paths.  By default this renders "orbiting
+ * dots": a bright moving point per particle with a short fading trail, and no
+ * persistent full-path backdrop.  Pass `showPaths: true` to also draw the faint
+ * speed-colored fat-line of each full path, and `trailLength` to lengthen the
+ * comet tail back toward the classic streak look.
  *
  * The returned group carries an `update(progress01)` on `userData` that the
  * scene clock drives each frame; `progress01` cycles 0→1 over one pass.
@@ -19,13 +21,17 @@ const TRAIL_LENGTH = 16;
  * @param {number} particles
  * @param {number} steps
  * @param {number} dt time step between consecutive points
- * @param {{ opacity?: number, lineOpacity?: number }} [options]
+ * @param {{ opacity?: number, lineOpacity?: number, showPaths?: boolean,
+ *   trailLength?: number, dotSize?: number }} [options]
  * @returns {THREE.Group}
  */
 export function createTrajectoryPaths(values, particles, steps, dt, options = {}) {
   const group = new THREE.Group();
   const lineOpacity = options.lineOpacity ?? 0.52;
   const headOpacity = options.opacity ?? 0.95;
+  const showPaths = options.showPaths ?? false;
+  const trailLength = Math.max(1, options.trailLength ?? 16);
+  const dotSize = options.dotSize ?? 0.16;
 
   const speeds = [];
   let maxSpeed = 0;
@@ -51,38 +57,40 @@ export function createTrajectoryPaths(values, particles, steps, dt, options = {}
   const speedColor = (speed) =>
     sampleColormap(SPEED_COLORMAP, (speed * invPeak) ** 0.65);
 
-  for (let p = 0; p < particles; p += 1) {
-    const base = p * steps * 3;
-    const linePositions = new Array(steps * 3);
-    const lineColors = new Array(steps * 3);
-    for (let t = 0; t < steps; t += 1) {
-      const i = t * 3;
-      linePositions[i] = values[base + i];
-      linePositions[i + 1] = values[base + i + 1];
-      linePositions[i + 2] = values[base + i + 2];
-      const [r, g, b] = speedColor(speeds[p][t]);
-      lineColors[i] = r;
-      lineColors[i + 1] = g;
-      lineColors[i + 2] = b;
+  if (showPaths) {
+    for (let p = 0; p < particles; p += 1) {
+      const base = p * steps * 3;
+      const linePositions = new Array(steps * 3);
+      const lineColors = new Array(steps * 3);
+      for (let t = 0; t < steps; t += 1) {
+        const i = t * 3;
+        linePositions[i] = values[base + i];
+        linePositions[i + 1] = values[base + i + 1];
+        linePositions[i + 2] = values[base + i + 2];
+        const [r, g, b] = speedColor(speeds[p][t]);
+        lineColors[i] = r;
+        lineColors[i + 1] = g;
+        lineColors[i + 2] = b;
+      }
+
+      const geometry = new LineGeometry();
+      geometry.setPositions(linePositions);
+      geometry.setColors(lineColors);
+
+      const material = new LineMaterial({
+        vertexColors: true,
+        transparent: true,
+        opacity: lineOpacity,
+        linewidth: 2.2,
+        depthWrite: false,
+        dashed: false,
+      });
+      material.resolution.set(window.innerWidth || 1, window.innerHeight || 1);
+      group.add(new Line2(geometry, material));
     }
-
-    const geometry = new LineGeometry();
-    geometry.setPositions(linePositions);
-    geometry.setColors(lineColors);
-
-    const material = new LineMaterial({
-      vertexColors: true,
-      transparent: true,
-      opacity: lineOpacity,
-      linewidth: 2.2,
-      depthWrite: false,
-      dashed: false,
-    });
-    material.resolution.set(window.innerWidth || 1, window.innerHeight || 1);
-    group.add(new Line2(geometry, material));
   }
 
-  const headCount = particles * TRAIL_LENGTH;
+  const headCount = particles * trailLength;
   const headPositions = new Float32Array(headCount * 3);
   const headColors = new Float32Array(headCount * 3);
   const headGeometry = new THREE.BufferGeometry();
@@ -92,7 +100,7 @@ export function createTrajectoryPaths(values, particles, steps, dt, options = {}
   );
   headGeometry.setAttribute("color", new THREE.BufferAttribute(headColors, 3));
   const headMaterial = new THREE.PointsMaterial({
-    size: 0.16,
+    size: dotSize,
     map: getDiscTexture(),
     sizeAttenuation: true,
     vertexColors: true,
@@ -124,10 +132,10 @@ export function createTrajectoryPaths(values, particles, steps, dt, options = {}
     const headF = progress01 * (steps - 1);
     let w = 0;
     for (let p = 0; p < particles; p += 1) {
-      for (let k = 0; k < TRAIL_LENGTH; k += 1) {
+      for (let k = 0; k < trailLength; k += 1) {
         let f = headF - k;
         if (f < 0) f += steps - 1;
-        const fade = (1 - k / TRAIL_LENGTH) ** 1.6;
+        const fade = (1 - k / trailLength) ** 1.6;
         const speed = speeds[p][Math.min(Math.round(f), steps - 1)];
         const [r, g, b] = speedColor(speed);
         const i3 = w * 3;

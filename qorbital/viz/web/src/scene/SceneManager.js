@@ -212,14 +212,24 @@ export class SceneManager {
   /**
    * @param {THREE.Object3D} object
    */
-  setContent(object) {
+  /**
+   * Swap the rendered content. Does NOT re-frame the camera, so layer toggles
+   * (trajectories, surface, ensemble, …) preserve the user's current view.
+   * Call {@link frameContent} explicitly on molecule load / reset.
+   *
+   * @param {THREE.Object3D} object
+   * @param {boolean} [frame] re-frame the camera to the new content
+   */
+  setContent(object, frame = false) {
     while (this.contentRoot.children.length > 0) {
       const child = this.contentRoot.children[0];
       this.contentRoot.remove(child);
     }
     this.contentRoot.add(object);
     this._collectLineMaterials();
-    this.frameContent();
+    if (frame) {
+      this.frameContent();
+    }
   }
 
   _collectLineMaterials() {
@@ -254,8 +264,18 @@ export class SceneManager {
     return { width, height };
   }
 
-  frameContent() {
-    const box = new THREE.Box3().setFromObject(this.contentRoot);
+  /**
+   * Fit the camera to a bounding box. Pass an explicit, layer-independent box
+   * (atoms + trajectories) so the framing is stable regardless of which layers
+   * are toggled on; falls back to the current content bounds when omitted.
+   *
+   * @param {THREE.Box3} [explicitBox]
+   */
+  frameContent(explicitBox) {
+    const box =
+      explicitBox && !explicitBox.isEmpty()
+        ? explicitBox
+        : new THREE.Box3().setFromObject(this.contentRoot);
     if (box.isEmpty()) return;
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());

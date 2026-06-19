@@ -33,6 +33,6 @@ class TestSuperpositionSeeds:
         state = build_superposition_from_ground_state(
             sv, integrals, "H2", grid_points=20
         )
-        assert state.source == "hardware_ground+exact_excited"
+        assert state.source == "hardware_ground+hf_lumo"
         seeds = sample_superposition_seeds(state, 10, rng=np.random.default_rng(1))
         assert seeds.shape == (10, 3)

@@ -48,7 +48,7 @@ _GRID_POINTS: dict[str, int] = {
 }
 
 # Trajectory integration controls, shared by single-run and ensemble paths.
-_N_PARTICLES = 20
+_N_PARTICLES = 50
 _N_STEPS = 100
 _N_PERIODS = 2.0
 
@@ -92,14 +92,20 @@ def _generate_trajectories(
         two_qubit_reduction=two_qubit_reduction,
         ground_energy=ground_energy,
     )
-    seeds = sample_superposition_seeds(superposition, n_particles, t=0.0)
     period = superposition_period(superposition.E0, superposition.E1)
-    times = np.linspace(0.0, n_periods * period, n_steps)
+    # Seed and integrate from the symmetric phase t0 = T/4, where
+    # |Psi|^2 = |c0 phi0|^2 + |c1 phi1|^2 (the cross term vanishes), so the
+    # particle cloud is balanced over both nuclei rather than starting fully
+    # localized on one atom (which |Psi(0)|^2 would give).
+    t0 = period / 4.0
+    seeds = sample_superposition_seeds(superposition, n_particles, t=t0)
+    times = np.linspace(t0, t0 + n_periods * period, n_steps)
     trajectories = integrate_superposition_trajectories_from_state(
         superposition,
         seeds,
         n_periods=n_periods,
         n_steps=n_steps,
+        t0=t0,
     )
     return trajectories, superposition, times
 

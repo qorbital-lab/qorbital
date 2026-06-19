@@ -60,6 +60,9 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  /* Don't let the widest child (the status-phase line) stretch the column and
+     balloon the legend box; each child keeps its own natural width. */
+  align-items: flex-start;
 }
 
 .brand-lockup {
@@ -200,6 +203,8 @@ body {
   margin: 0;
   color: #e8e8e8;
   letter-spacing: 0.02em;
+  /* Cap + wrap the status line so a long layer list never widens the HUD. */
+  max-width: 360px;
 }
 
 .backend-badge {

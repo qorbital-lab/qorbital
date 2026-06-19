@@ -34,7 +34,7 @@ class TestSuperpositionContract:
         assert state.omega == pytest.approx(state.E1 - state.E0, abs=1e-12)
         assert state.c0 == pytest.approx(1.0 / math.sqrt(2.0), abs=1e-12)
         assert state.c1 == pytest.approx(1.0 / math.sqrt(2.0), abs=1e-12)
-        assert state.source == "exact_diag"
+        assert state.source == "hf_homo_lumo"
         assert state.E0 < state.E1
 
     def test_grid_in_bohr(self, h2_superposition: SuperpositionState):
@@ -106,5 +106,5 @@ class TestLiHProjection:
         state = build_superposition_state("LiH", bond_length=1.596, grid_points=40)
         assert np.all(np.isfinite(state.phi0))
         assert np.all(np.isfinite(state.phi1))
-        assert state.source == "exact_diag"
+        assert state.source == "hf_homo_lumo"
         assert state.phi0.shape == state.phi1.shape == state.grid_shape
