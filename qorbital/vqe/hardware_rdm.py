@@ -129,6 +129,8 @@ def measure_rdm1(
     qubit_hamiltonian: QubitHamiltonian,
     parameters: NDArray[np.float64],
     estimator: BaseEstimatorV2,
+    *,
+    shots: int | None = None,
 ) -> MeasuredRDM:
     """Measure the spin-free 1-RDM of the converged ansatz on ``estimator``.
 
@@ -166,7 +168,12 @@ def measure_rdm1(
         observables = [op for (_, _, op) in terms]
 
     params = np.asarray(parameters, dtype=float)
-    job = estimator.run([(circuit, observables, [params])])
+    # Honour the requested shots: BackendEstimatorV2 derives shots from precision
+    # (ceil(1/precision**2)) and ignores the backend shots option, defaulting to
+    # 4096. precision=shots**-0.5 makes the request stick. None = estimator default
+    # (exact for StatevectorEstimator in the correctness test).
+    run_kwargs = {} if shots is None else {"precision": float(shots) ** -0.5}
+    job = estimator.run([(circuit, observables, [params])], **run_kwargs)
     pub_result = job.result()[0]
     evs = np.asarray(pub_result.data.evs, dtype=float).reshape(-1)
     raw_stds = getattr(pub_result.data, "stds", None)
@@ -207,7 +214,7 @@ def measure_rdm1(
         if hasattr(qubit_hamiltonian.mapping, "value")
         else str(qubit_hamiltonian.mapping),
         two_qubit_reduction=qubit_hamiltonian.two_qubit_reduction,
-        shots=_read_shots(estimator),
+        shots=shots if shots is not None else _read_shots(estimator),
         backend=_backend_label(estimator),
         parameters=params,
     )

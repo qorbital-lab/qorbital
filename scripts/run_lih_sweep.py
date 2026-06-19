@@ -1,4 +1,11 @@
-"""Run LiH bond-length sweep on ionq_sim (sim-only stand-in for Forte Enterprise)."""
+"""Run the LiH bond-length sweep on IonQ Forte Enterprise (B11).
+
+Defaults to the real ``ionq_forte`` QPU (``qpu.forte-enterprise-1``); pass
+``--backend ionq_sim`` to validate against the cloud simulator (shot noise, no
+credits) before spending QPU time.  Each run optimises locally and submits only
+the converged circuit (locked sprint decision), so the sweep spends QPU credits
+per run -- queue early (status.ionq.co).
+"""
 
 from __future__ import annotations
 
@@ -16,6 +23,7 @@ def run_lih_sweep(
     runs_per_length: int = 2,
     shots: int = 5000,
     max_iterations: int = 30,
+    backend: Backend | str = Backend.IONQ_FORTE,
 ) -> None:
     """Submit LiH VQE runs at multiple bond lengths."""
     if bond_lengths is None:
@@ -29,7 +37,7 @@ def run_lih_sweep(
             submit_vqe(
                 "LiH",
                 bond_length=r,
-                backend=Backend.IONQ_SIM,
+                backend=backend,
                 shots=shots,
                 max_iterations=max_iterations,
                 run_id=f"lih_r{r:.3f}_{j}_{uuid.uuid4().hex[:6]}",
@@ -38,7 +46,13 @@ def run_lih_sweep(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="LiH bond-length sweep (sim-only)")
+    parser = argparse.ArgumentParser(description="LiH bond-length hardware sweep")
+    parser.add_argument(
+        "--backend",
+        default=Backend.IONQ_FORTE.value,
+        choices=[b.value for b in Backend],
+        help="Execution backend (default: ionq_forte; use ionq_sim to validate)",
+    )
     parser.add_argument(
         "--bond-lengths",
         type=float,
@@ -54,6 +68,7 @@ def main() -> None:
         runs_per_length=args.runs_per_length,
         shots=args.shots,
         max_iterations=args.max_iterations,
+        backend=args.backend,
     )
 
 

@@ -152,7 +152,7 @@ def _evaluate_on_ionq(
     device.run = _capturing_run
     try:
         electronic = evaluate_energy_on_estimator(
-            qubit_hamiltonian, parameters, estimator
+            qubit_hamiltonian, parameters, estimator, shots=shots
         )
     finally:
         device.run = original_run

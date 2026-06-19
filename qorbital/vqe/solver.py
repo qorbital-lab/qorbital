@@ -161,6 +161,8 @@ def evaluate_energy_on_estimator(
     qubit_hamiltonian: QubitHamiltonian,
     parameters: NDArray[np.float64],
     estimator: BaseEstimatorV2,
+    *,
+    shots: int | None = None,
 ) -> float:
     """Electronic ``<H>`` for the converged ansatz, evaluated on ``estimator``.
 
@@ -177,6 +179,11 @@ def evaluate_energy_on_estimator(
 
     Returns the raw electronic eigenvalue (no nuclear-repulsion offset); the
     caller adds ``qubit_hamiltonian.nuclear_repulsion_energy`` for total energy.
+
+    ``shots`` controls the device shot count. ``BackendEstimatorV2`` derives shots
+    from precision as ``ceil(1/precision**2)`` and *ignores* the backend's ``shots``
+    option, so we pass ``precision = shots**-0.5`` to actually honour the request
+    (without it every run defaults to 4096 shots). ``None`` leaves the default.
     """
     ansatz = _build_ansatz(qubit_hamiltonian)
     pass_manager = generate_preset_pass_manager(
@@ -184,7 +191,8 @@ def evaluate_energy_on_estimator(
     )
     isa_ansatz = pass_manager.run(ansatz)
     observable = qubit_hamiltonian.qubit_op.apply_layout(isa_ansatz.layout)
-    job = estimator.run([(isa_ansatz, observable, [parameters])])
+    run_kwargs = {} if shots is None else {"precision": float(shots) ** -0.5}
+    job = estimator.run([(isa_ansatz, observable, [parameters])], **run_kwargs)
     evs = np.asarray(job.result()[0].data.evs).reshape(-1)
     return float(evs[0])
 

@@ -52,8 +52,12 @@ class _StubEstimator:
     def __init__(self, evs):
         self._evs = evs
         self.backend = GenericBackendV2(num_qubits=4, seed=0)
+        self.last_precision = None
 
-    def run(self, pubs):
+    def run(self, pubs, *, precision=None):
+        # Real BackendEstimatorV2/StatevectorEstimator accept ``precision``;
+        # record it so the shots->precision wiring can be asserted.
+        self.last_precision = precision
         return _StubJob(self._evs)
 
 
@@ -81,9 +85,10 @@ class TestIonQSubmitWiring:
     """The measured energy must come from the estimator, not synthetic noise."""
 
     def test_energy_from_estimator_no_gaussian(self, tmp_path, monkeypatch):
+        stub = _StubEstimator(np.array([STUB_EV]))
         monkeypatch.setattr(
             "qorbital.vqe.submit.make_estimator",
-            lambda backend, shots: _StubEstimator(np.array([STUB_EV])),
+            lambda backend, shots: stub,
         )
 
         log = submit_vqe(
@@ -93,6 +98,10 @@ class TestIonQSubmitWiring:
             output_dir=tmp_path,
             run_id="stub_h2",
         )
+
+        # The requested shots must reach the estimator as precision=shots**-0.5
+        # (BackendEstimatorV2 ignores the backend shots option, else defaults 4096).
+        assert stub.last_precision == pytest.approx(1000**-0.5)
 
         # Electronic energy is exactly the stubbed expectation value: a residual
         # gaussian-noise branch would have perturbed the total instead.

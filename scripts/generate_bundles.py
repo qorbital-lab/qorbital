@@ -18,6 +18,7 @@ import numpy as np
 
 from qorbital.bohmian.integrator import integrate_superposition_trajectories_from_state
 from qorbital.bohmian.seeds import sample_superposition_seeds
+from qorbital.bohmian.trajectories import DT as _DT
 from qorbital.bohmian.velocity import superposition_period
 from qorbital.chemistry.density import compute_density
 from qorbital.chemistry.integrals import compute_integrals
@@ -29,6 +30,7 @@ from qorbital.chemistry.superposition import (
 from qorbital.viz.schema import SCHEMA_VERSION
 from qorbital.viz.trajectories import (
     build_molecule_bundle,
+    trajectories_to_sidecar,
     trajectory_set_from_superposition,
 )
 from qorbital.vqe.solver import run_vqe, statevector_from_params
@@ -268,6 +270,88 @@ def generate_ensemble(
     print(f"Ensemble manifest written for {molecule}: {len(members)} members")
 
 
+def generate_rdm_ensemble(
+    molecule: str,
+    *,
+    cache_path: Path,
+    output_dir: Path | None = None,
+    m: int = 8,
+    shots: int = 1000,
+    backend: str = "ionq_forte",
+    grid_points: int = 30,
+) -> None:
+    """Build a trajectory ensemble from hardware-measured 1-RDMs (B10/B11).
+
+    Unlike :func:`generate_ensemble` (which replays *identical* converged params
+    through a noiseless statevector), this consumes the genuine per-run noise of
+    :func:`qorbital.bohmian.noise_ensemble.measure_rdm_ensemble`: each device
+    execution yields a different noisy 1-RDM -> a different density -> a
+    different trajectory set, so the overlaid members form a non-degenerate
+    uncertainty cloud.
+
+    When ``cache_path`` exists the ensemble is replayed from the cached ``.npz``
+    with **zero device calls** (deterministic, offline); otherwise the 1-RDM is
+    measured ``m`` times on ``backend`` (spends QPU credits on real hardware) and
+    cached.
+    """
+    from qorbital.bohmian.noise_ensemble import measure_rdm_ensemble
+
+    params = get_molecule_params(molecule)
+    bond = DEFAULT_BOND_LENGTHS[molecule]
+    if output_dir is None:
+        output_dir = Path("data/bundles") / molecule.lower()
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    ensemble = measure_rdm_ensemble(
+        molecule,
+        bond=bond,
+        charge=params.charge,
+        spin=params.spin,
+        mapping=params.mapping,
+        two_qubit_reduction=params.two_qubit_reduction,
+        m=m,
+        shots=shots,
+        backend=backend,
+        grid_points=grid_points,
+        cache_path=cache_path,
+    )
+
+    members: list[dict] = []
+    for index, trajectories in enumerate(ensemble.trajectory_sets):
+        sidecar = f"{molecule.lower()}_rdm_{index:02d}.bin"
+        traj_set = trajectories_to_sidecar(trajectories, output_dir, sidecar, dt=_DT)
+        members.append(
+            {
+                "run_id": f"{molecule.lower()}_rdm_{index:02d}",
+                "paths": sidecar,
+                "particles": traj_set.particles,
+                "steps": traj_set.steps,
+                "dt": traj_set.dt,
+                "shots": ensemble.shots,
+                "backend": ensemble.backend,
+                "bond_length": ensemble.bond,
+            }
+        )
+        print(f"  member {index}: rdm {index:02d} -> {sidecar}")
+
+    manifest = {
+        "schema_version": SCHEMA_VERSION,
+        "molecule": molecule,
+        "label": MOLECULE_LABELS.get(molecule, molecule),
+        "bond_length_angstrom": ensemble.bond,
+        "path_layout": "particle-major",
+        "color_by": "speed",
+        "source": "hardware_rdm",
+        "particles": members[0]["particles"],
+        "steps": members[0]["steps"],
+        "dt": members[0]["dt"],
+        "runs": members,
+    }
+    manifest_path = output_dir / f"{molecule.lower()}_ensemble.json"
+    manifest_path.write_text(json.dumps(manifest, indent=2))
+    print(f"Hardware-RDM ensemble written for {molecule}: {len(members)} members")
+
+
 def main() -> None:
     import argparse
 
@@ -290,7 +374,50 @@ def main() -> None:
         default=None,
         help="Cap the number of ensemble members per molecule",
     )
+    parser.add_argument(
+        "--from-rdm-cache",
+        type=Path,
+        default=None,
+        metavar="NPZ",
+        help=(
+            "Build the ensemble from hardware-measured 1-RDMs cached at this "
+            "path (genuine per-run noise) instead of replaying converged params. "
+            "Requires --ensemble and a single --molecule."
+        ),
+    )
+    parser.add_argument(
+        "--m",
+        type=int,
+        default=8,
+        help="Number of 1-RDM measurements for --from-rdm-cache (default: 8)",
+    )
+    parser.add_argument(
+        "--shots",
+        type=int,
+        default=1000,
+        help="Shots per 1-RDM measurement for --from-rdm-cache (default: 1000)",
+    )
+    parser.add_argument(
+        "--backend",
+        default="ionq_forte",
+        help="Backend for --from-rdm-cache when the cache is absent",
+    )
     args = parser.parse_args()
+
+    if args.from_rdm_cache is not None:
+        if not args.ensemble:
+            parser.error("--from-rdm-cache requires --ensemble")
+        if len(args.molecule) != 1:
+            parser.error("--from-rdm-cache requires exactly one --molecule")
+        generate_rdm_ensemble(
+            args.molecule[0],
+            cache_path=args.from_rdm_cache,
+            m=args.m,
+            shots=args.shots,
+            backend=args.backend,
+        )
+        return
+
     for mol in args.molecule:
         if args.ensemble:
             generate_ensemble(mol, max_runs=args.max_runs)

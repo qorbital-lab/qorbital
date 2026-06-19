@@ -171,7 +171,7 @@ def measure_rdm_ensemble(
             # Fresh estimator per run so a real backend re-seeds shot noise each
             # execution; for AER (exact statevector) the runs are identical.
             estimator = make_estimator(backend, shots=shots)
-            measured.append(measure_rdm1(qh, parameters, estimator))
+            measured.append(measure_rdm1(qh, parameters, estimator, shots=shots))
 
         if cache_path is not None:
             meta = {

@@ -56,7 +56,9 @@ def sample_superposition_seeds(
         j = rem // stride_y
         i = rem % stride_y
         jitter = generator.random(3)
-        seeds[particle] = origin + np.array([i, j, k], dtype=np.float64) * spacing + (
-            jitter * spacing
+        seeds[particle] = (
+            origin
+            + np.array([i, j, k], dtype=np.float64) * spacing
+            + (jitter * spacing)
         )
     return seeds

@@ -1,0 +1,100 @@
+{
+  "run_id": "h2_ensemble_02_244b7e",
+  "molecule": "H2",
+  "geometry": "H 0 0 0; H 0 0 0.735",
+  "bond_length": 0.735,
+  "basis": "sto-3g",
+  "mapper": "jordan_wigner",
+  "two_qubit_reduction": false,
+  "ansatz_params": {
+    "init": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "final": [
+      1.2456760096480273e-07,
+      1.1374744249793958e-07,
+      -0.11176257643335862
+    ]
+  },
+  "backend": "ionq_forte",
+  "shots": 1000,
+  "optimizer_history": [
+    {
+      "iteration": 1,
+      "energy": -1.8369679912029724,
+      "parameters": [
+        0.0
+      ]
+    },
+    {
+      "iteration": 2,
+      "energy": -1.8369679912029713,
+      "parameters": [
+        1.4901161193847656e-08
+      ]
+    },
+    {
+      "iteration": 3,
+      "energy": -1.8369679912029722,
+      "parameters": [
+        0.0
+      ]
+    },
+    {
+      "iteration": 4,
+      "energy": -1.836967985810802,
+      "parameters": [
+        0.0
+      ]
+    },
+    {
+      "iteration": 5,
+      "energy": -1.757286607068235,
+      "parameters": [
+        -7.450580596923828e-08
+      ]
+    },
+    {
+      "iteration": 6,
+      "energy": -1.8572741956295782,
+      "parameters": [
+        -2.3159839462710334e-08
+      ]
+    },
+    {
+      "iteration": 7,
+      "energy": -1.8572741956295804,
+      "parameters": [
+        -8.258678268862678e-09
+      ]
+    },
+    {
+      "iteration": 8,
+      "energy": -1.85727419562958,
+      "parameters": [
+        -2.3159839462710334e-08
+      ]
+    },
+    {
+      "iteration": 9,
+      "energy": -1.8572741956643617,
+      "parameters": [
+        -2.3159839462710334e-08
+      ]
+    },
+    {
+      "iteration": 10,
+      "energy": -1.8572750301450778,
+      "parameters": [
+        1.2456760096480273e-07
+      ]
+    }
+  ],
+  "energy": -0.9465702296250237,
+  "electronic_energy": -1.6665392240740033,
+  "nuclear_repulsion_energy": 0.7199689944489797,
+  "cost_credits": null,
+  "timestamp": "2026-06-19T06:48:36.838950+00:00"
+}
