@@ -14,54 +14,20 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import numpy as np
-from qiskit.quantum_info import Statevector
-
-from qorbital.bohmian.integrator import integrate_trajectories
-from qorbital.bohmian.projection import project_natural_orbital
-from qorbital.bohmian.velocity import add_azimuthal_phase, velocity_field
+from qorbital.bohmian.trajectories import DT as _DT
+from qorbital.bohmian.trajectories import generate_trajectories
 from qorbital.chemistry.density import compute_density
-from qorbital.chemistry.hamiltonian import build_hamiltonian
 from qorbital.chemistry.integrals import compute_integrals
 from qorbital.chemistry.molecules import DEFAULT_BOND_LENGTHS, get_molecule_params
 from qorbital.viz.schema import SCHEMA_VERSION
 from qorbital.viz.trajectories import build_molecule_bundle, trajectories_to_sidecar
-from qorbital.vqe.solver import _build_ansatz, run_vqe
+from qorbital.vqe.solver import run_vqe, statevector_from_params
 
 MOLECULE_LABELS: dict[str, str] = {
     "H2": "H₂",
     "HeH+": "HeH⁺",
     "LiH": "LiH",
 }
-
-# Trajectory integration controls, shared by single-run and ensemble paths.
-_N_PARTICLES = 20
-_N_STEPS = 100
-_DT = 0.1
-
-
-def _generate_trajectories(
-    density_grid,
-    integrals,
-    molecule: str,
-    *,
-    bond: float | None = None,
-    n_particles: int = _N_PARTICLES,
-    n_steps: int = _N_STEPS,
-) -> np.ndarray:
-    """Generate Bohmian trajectories with azimuthal phase injection."""
-    wf = project_natural_orbital(density_grid, integrals, molecule)
-    psi_complex = add_azimuthal_phase(wf.psi, wf.origin, wf.spacing, strength=0.5)
-    vx, vy, vz = velocity_field(psi_complex, wf.spacing)
-
-    if bond is None:
-        bond = DEFAULT_BOND_LENGTHS[molecule]
-    seeds = np.array(
-        [[0.0, 0.0, z] for z in np.linspace(-bond * 0.3, bond * 0.3, n_particles)]
-    )
-    return integrate_trajectories(
-        vx, vy, vz, wf.origin, wf.spacing, seeds, t_span=(0.0, 5.0), n_steps=n_steps
-    )
 
 
 def generate_bundle(molecule: str) -> None:
@@ -96,7 +62,7 @@ def generate_bundle(molecule: str) -> None:
         grid_points=30,
         atom_string=molecule,
     )
-    trajectories = _generate_trajectories(density, integrals, molecule)
+    trajectories = generate_trajectories(density, integrals, molecule)
 
     build_molecule_bundle(
         molecule,
@@ -108,38 +74,6 @@ def generate_bundle(molecule: str) -> None:
         reference_energies={"hf": integrals.hf_energy},
     )
     print(f"Bundle written for {molecule}")
-
-
-def _statevector_from_params(
-    molecule: str,
-    bond: float,
-    charge: int,
-    spin: int,
-    final_params,
-) -> np.ndarray:
-    """Rebuild a JW statevector from a run's recorded final ansatz parameters.
-
-    Density extraction only supports Jordan-Wigner statevectors, so the
-    replay uses JW regardless of the run's original mapper; the recorded UCCSD
-    parameters are mapper-agnostic for the registry molecules used here.
-    """
-    qh = build_hamiltonian(
-        molecule,
-        bond_length=bond,
-        charge=charge,
-        spin=spin,
-        mapping="jordan_wigner",
-        two_qubit_reduction=False,
-    )
-    ansatz = _build_ansatz(qh)
-    params = np.asarray(final_params, dtype=float)
-    if params.shape[0] != ansatz.num_parameters:
-        raise ValueError(
-            f"{molecule}: run has {params.shape[0]} params but JW UCCSD ansatz "
-            f"expects {ansatz.num_parameters}; cannot replay under JW."
-        )
-    bound = ansatz.assign_parameters(params)
-    return np.asarray(Statevector(bound), dtype=np.complex128)
 
 
 def generate_ensemble(
@@ -189,7 +123,7 @@ def generate_ensemble(
             continue
 
         try:
-            statevector = _statevector_from_params(
+            statevector = statevector_from_params(
                 molecule, bond, params.charge, params.spin, final
             )
         except ValueError as exc:
@@ -210,7 +144,7 @@ def generate_ensemble(
         density = compute_density(
             statevector, integrals, grid_points=30, atom_string=molecule
         )
-        trajectories = _generate_trajectories(density, integrals, molecule, bond=bond)
+        trajectories = generate_trajectories(density, integrals, molecule, bond=bond)
 
         index = len(members)
         sidecar = f"{molecule.lower()}_ens_{index:02d}.bin"

@@ -146,14 +146,43 @@ def compute_density(
         )
         raise ValueError(msg)
 
-    resolved, charge, spin = _molecule_meta(atom_string)
-
     mapper = make_mapper(mapping, integrals.num_particles, two_qubit_reduction)
     rdm1_mo = _extract_rdm1(
         statevector,
         integrals.num_spatial_orbitals,
         mapper,
     )
+    return density_from_rdm1(
+        rdm1_mo,
+        integrals,
+        atom_string,
+        grid_points=grid_points,
+        padding=padding,
+        basis=basis,
+    )
+
+
+def density_from_rdm1(
+    rdm1_mo: NDArray[np.float64],
+    integrals: MolecularIntegrals,
+    atom_string: str,
+    grid_points: int = 50,
+    padding: float = 3.0,
+    basis: str = "sto-3g",
+) -> ElectronDensityGrid:
+    """Build an :class:`ElectronDensityGrid` from a precomputed spin-free 1-RDM.
+
+    Shared by the exact-statevector path (:func:`compute_density`, which extracts
+    the 1-RDM from a mapped statevector) and the hardware path (which *measures*
+    the 1-RDM term-by-term on a device, see
+    :func:`qorbital.vqe.hardware_rdm.measure_rdm1`).  ``rdm1_mo`` is the spin-free
+    1-RDM in the MO basis (shape ``(num_spatial_orbitals, num_spatial_orbitals)``);
+    ``integrals`` supplies the MO coefficients for the AO transform and
+    ``atom_string`` the geometry for basis-function evaluation.  Closed-shell
+    molecules are assumed.
+    """
+    resolved, charge, spin = _molecule_meta(atom_string)
+
     total_electrons = float(np.trace(rdm1_mo))
 
     mo_coeff = integrals.mo_coefficients

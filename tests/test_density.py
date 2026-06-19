@@ -3,8 +3,13 @@
 import numpy as np
 import pytest
 
-from qorbital.chemistry.density import ElectronDensityGrid, compute_density
-from qorbital.chemistry.hamiltonian import build_hamiltonian
+from qorbital.chemistry.density import (
+    ElectronDensityGrid,
+    _extract_rdm1,
+    compute_density,
+    density_from_rdm1,
+)
+from qorbital.chemistry.hamiltonian import build_hamiltonian, make_mapper
 from qorbital.chemistry.integrals import MolecularIntegrals, compute_integrals
 
 
@@ -93,6 +98,24 @@ class TestDensityH2:
     ):
         occs = h2_density.natural_occupations
         assert np.all(np.diff(occs) <= 1e-12)
+
+
+class TestDensityFromRDM1:
+    """The factored-out RDM->grid path reproduces compute_density exactly."""
+
+    def test_matches_compute_density(
+        self, h2_statevector: np.ndarray, h2_integrals: MolecularIntegrals
+    ):
+        full = compute_density(
+            h2_statevector, h2_integrals, grid_points=20, atom_string="H2"
+        )
+        mapper = make_mapper("jordan_wigner", h2_integrals.num_particles, False)
+        rdm1 = _extract_rdm1(h2_statevector, h2_integrals.num_spatial_orbitals, mapper)
+        direct = density_from_rdm1(rdm1, h2_integrals, "H2", grid_points=20)
+        np.testing.assert_allclose(direct.density, full.density, atol=1e-10)
+        np.testing.assert_allclose(
+            direct.natural_occupations, full.natural_occupations, atol=1e-10
+        )
 
 
 class TestInterfaceVariants:

@@ -189,6 +189,44 @@ def evaluate_energy_on_estimator(
     return float(evs[0])
 
 
+def statevector_from_params(
+    molecule: str,
+    bond: float,
+    charge: int,
+    spin: int,
+    final_params: NDArray[np.float64],
+    mapping: str = "jordan_wigner",
+    two_qubit_reduction: bool = False,
+) -> NDArray[np.complex128]:
+    """Rebuild a statevector from a run's recorded final UCCSD parameters.
+
+    This is the deterministic, noiseless *reference* density path: a clean Aer/
+    statevector rebuild from the converged parameters, distinct from the noisy
+    hardware 1-RDM measurement (:func:`qorbital.vqe.hardware_rdm.measure_rdm1`).
+    Defaults to Jordan-Wigner (no 2-qubit reduction) because the recorded UCCSD
+    parameters are mapper-agnostic for the registry molecules and the downstream
+    density grid is simplest under JW; pass ``mapping`` / ``two_qubit_reduction``
+    to replay under the run's original mapper.
+    """
+    qh = build_hamiltonian(
+        molecule,
+        bond_length=bond,
+        charge=charge,
+        spin=spin,
+        mapping=mapping,
+        two_qubit_reduction=two_qubit_reduction,
+    )
+    ansatz = _build_ansatz(qh)
+    params = np.asarray(final_params, dtype=float)
+    if params.shape[0] != ansatz.num_parameters:
+        raise ValueError(
+            f"{molecule}: run has {params.shape[0]} params but {mapping} UCCSD "
+            f"ansatz expects {ansatz.num_parameters}; cannot replay."
+        )
+    bound = ansatz.assign_parameters(params)
+    return np.asarray(Statevector(bound), dtype=np.complex128)
+
+
 def run_vqe(
     atoms: str,
     bond_length: float | None = None,
