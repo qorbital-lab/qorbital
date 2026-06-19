@@ -5,8 +5,11 @@ import { createIsosurfaceMesh } from "../geometry/IsosurfaceMesh.js";
 import { createDensityCloud } from "../geometry/DensityCloud.js";
 import { createTrajectoryPaths } from "../geometry/TrajectoryPaths.js";
 import { createEnsembleTrajectories } from "../geometry/EnsembleTrajectories.js";
+import { createEnsembleUncertainty } from "../geometry/EnsembleUncertainty.js";
 import { scaleMoleculeBond } from "../geometry/scaleMoleculeBond.js";
 import { createDensityField } from "../density/densityField.js";
+import { computeUncertaintyCloud } from "../density/computeUncertaintyCloud.js";
+import { sampleUncertaintyPoints } from "../density/sampleUncertaintyPoints.js";
 import { loadGridValues } from "../density/loadGridValues.js";
 import { sampleDensityPoints } from "../density/samplePoints.js";
 import { sampleDiffPoints } from "../density/sampleDiffPoints.js";
@@ -82,6 +85,8 @@ export class QorbitalApp {
     this._ensembleCount = 0;
     /** @type {Awaited<ReturnType<typeof loadEnsemble>>} */
     this._ensemble = null;
+    /** @type {import("../density/computeUncertaintyCloud.js").UncertaintyCloud | null} */
+    this._ensembleUncertaintyCloud = null;
     this._trajTime = 0;
     this._trajProgress = 0;
     this._isScrubbing = false;
@@ -462,7 +467,8 @@ export class QorbitalApp {
       this.elements.ensembleHint.textContent = "No ensemble for this molecule";
     } else {
       const count = this._ensemble.members.length;
-      this.elements.ensembleHint.textContent = `Overlay of ${count} IonQ VQE runs — noise cloud`;
+      this.elements.ensembleHint.textContent =
+        `Histogram uncertainty field + ${count} overlaid trajectories`;
     }
     this._syncLayerUi();
   }
@@ -750,6 +756,7 @@ export class QorbitalApp {
     this._ensemble = entry.ensembleUrl
       ? await loadEnsemble(entry.ensembleUrl)
       : null;
+    this._ensembleUncertaintyCloud = null;
     this._refreshEnsembleAvailability();
     this._refreshConvergencePanel(entry);
 
@@ -795,6 +802,31 @@ export class QorbitalApp {
     this.state.controlsOpen = !this.state.controlsOpen;
     /** @type {HTMLElement} */ (this.elements.controlsPanel).hidden =
       !this.state.controlsOpen;
+  }
+
+  _rebuildEnsembleUncertainty() {
+    if (!this._ensemble?.members?.length || !this._currentBundle?.density) {
+      this._ensembleUncertaintyCloud = null;
+      return;
+    }
+
+    const density = /** @type {Record<string, unknown>} */ (
+      this._currentBundle.density
+    );
+    if (density.kind !== "grid") {
+      this._ensembleUncertaintyCloud = null;
+      return;
+    }
+
+    const origin = /** @type {number[]} */ (density.origin);
+    const spacing = /** @type {number[]} */ (density.spacing);
+    const shape = /** @type {number[]} */ (density.shape);
+    this._ensembleUncertaintyCloud = computeUncertaintyCloud(
+      this._ensemble.members,
+      origin,
+      spacing,
+      shape,
+    );
   }
 
   /**
@@ -904,6 +936,9 @@ export class QorbitalApp {
     }
     if (this.state.showEnsemble && this._ensembleCount > 0) {
       modeParts.push(`ensemble ×${this._ensembleCount}`);
+    }
+    if (this.state.showEnsemble && this._ensembleUncertaintyCloud) {
+      modeParts.push("uncertainty cloud");
     }
     if (this.state.showComparison && this.state.comparisonDiff) {
       modeParts.push("Δρ");
@@ -1125,14 +1160,33 @@ export class QorbitalApp {
     }
 
     if (this.state.showEnsemble && this._ensemble) {
-      const ensemble = createEnsembleTrajectories(this._ensemble.members);
-      this._animatedGroups.push(ensemble);
-      this._ensembleCount = this._ensemble.members.length;
-      this._speedPeak = Math.max(
-        this._speedPeak,
-        Number(ensemble.userData.maxSpeed ?? 0),
-      );
-      this._contentGroup.add(ensemble);
+      if (this._ensembleUncertaintyCloud) {
+        const { positions, densities, stds } = sampleUncertaintyPoints(
+          this._ensembleUncertaintyCloud,
+          this.state.particleCount,
+        );
+        if (stds.length > 0) {
+          this._contentGroup.add(
+            createEnsembleUncertainty(positions, densities, stds),
+          );
+        }
+      }
+
+      if (this.state.showTrajectories) {
+        const ensemble = createEnsembleTrajectories(this._ensemble.members, {
+          lineOpacity: 0.08,
+          opacity: 0.4,
+        });
+        this._animatedGroups.push(ensemble);
+        this._ensembleCount = this._ensemble.members.length;
+        this._speedPeak = Math.max(
+          this._speedPeak,
+          Number(ensemble.userData.maxSpeed ?? 0),
+        );
+        this._contentGroup.add(ensemble);
+      } else {
+        this._ensembleCount = this._ensemble.members.length;
+      }
     }
 
     this._applyTrajectoryTimingFromBundle(bundle);
@@ -1164,6 +1218,7 @@ export class QorbitalApp {
         /** @type {Record<string, unknown> | undefined} */ (bundle.trajectories),
       );
       this._refreshComparisonAvailability();
+      this._rebuildEnsembleUncertainty();
       this.renderBundle(bundle);
       this.setOverlay("");
     } catch (err) {

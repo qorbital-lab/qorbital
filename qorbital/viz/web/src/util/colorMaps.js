@@ -68,6 +68,15 @@ const COLORMAPS = {
     [0.843, 0.404, 0.031],
     [0.647, 0.0, 0.149],
   ],
+  plasma: [
+    [0.05, 0.03, 0.063],
+    [0.253, 0.026, 0.446],
+    [0.417, 0.0, 0.658],
+    [0.636, 0.078, 0.706],
+    [0.853, 0.267, 0.615],
+    [0.988, 0.553, 0.388],
+    [0.94, 0.975, 0.131],
+  ],
 };
 
 /**
@@ -108,4 +117,5 @@ export function colormapCss(name, t) {
 export const DENSITY_COLORMAP = "viridis";
 export const HF_COLORMAP = "inferno";
 export const DIFF_COLORMAP = "diff";
+export const UNCERTAINTY_COLORMAP = "plasma";
 export const SPEED_COLORMAP = "inferno";

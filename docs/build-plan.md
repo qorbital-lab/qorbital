@@ -112,6 +112,7 @@ Dependencies are noted per segment. Within a phase, segments can mostly run in p
 **Acceptance:** toggle shows HF density alongside/diffed-against VQE density for H₂ and LiH.
 
 ### [F5] Uncertainty cloud as a diffuse field (not just overlaid lines)
+**Status:** DONE
 **Scope:** `EnsembleTrajectories.js` currently overlays low-opacity polylines. Add a true diffuse cloud driven by `compute_uncertainty_cloud` (`qorbital/bohmian/uncertainty.py:22-41`, returns per-voxel density + std). New `EnsembleUncertainty.js` renders the histogram field — sharp in stable regions, diffuse near nodes.
 **Depends on:** B11 (real per-run densities). Until then, render from sim ensembles.
 **Acceptance:** H₂ ensemble shows a visibly diffuse cloud near nodes; sharp in bonding region.
